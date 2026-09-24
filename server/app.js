@@ -105,6 +105,8 @@ export function createApp(options={}){
 
   app.get('/api/gallery',async(request,response)=>response.json((await db().execute('select id,title,description,image_path,event_date,display_order from gallery_items where active=1 order by display_order,id'))[0]));
   app.get('/api/members',async(request,response)=>response.json((await db().execute('select id,name,designation,bio,photo_path,display_order from members where active=1 order by display_order,id'))[0]));
+  app.get('/api/admin/gallery',admin,async(request,response)=>response.json((await db().execute('select * from gallery_items order by created_at desc'))[0]));
+  app.get('/api/admin/members',admin,async(request,response)=>response.json((await db().execute('select * from members order by display_order,id'))[0]));
   for(const[kind,columns]of [['gallery',['title','description','event_date','display_order','active','image_path']],['members',['name','designation','bio','display_order','active','photo_path']]]){
     const image=kind==='gallery'?'image_path':'photo_path',table=kind==='gallery'?'gallery_items':'members';
     app.post(`/api/admin/${kind}`,admin,sameOrigin,upload(kind).single('image'),async(request,response)=>{if(!request.body[columns[0]])return response.sendStatus(400);const values=columns.map(column=>column===image?publicPath(request.file,kind):(request.body[column]??null));try{const[result]=await db().execute(`insert into ${table} (${columns.join(',')}) values (${columns.map(()=>'?').join(',')})`,values);response.status(201).json({id:result.insertId})}catch(error){await remove(publicPath(request.file,kind),kind);throw error}});

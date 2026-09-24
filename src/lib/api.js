@@ -15,3 +15,15 @@ export async function fetchPublicCollection(route,{fetcher=globalThis.fetch,base
   if(!response?.ok)throw Error('Public API unavailable');
   try{const data=await response.json();if(!Array.isArray(data))throw Error('Unexpected response');return data}catch{throw Error('Public API unavailable')}
 }
+
+export class AdminApiError extends Error{constructor(status){super('Admin API unavailable');this.status=status}}
+
+export async function adminRequest(route,{method='GET',body,fetcher=globalThis.fetch,base}={}){
+  const headers={};
+  if(body&&!(body instanceof globalThis.FormData))headers['Content-Type']='application/json';
+  let response;
+  try{response=await fetcher(apiUrl(route,base),{method,headers,body:body&&!(body instanceof globalThis.FormData)?JSON.stringify(body):body,credentials:'include'})}catch{throw new AdminApiError(0)}
+  if(!response?.ok)throw new AdminApiError(response?.status||0);
+  if(response.status===204)return null;
+  try{return await response.json()}catch{throw new AdminApiError(response.status)}
+}
