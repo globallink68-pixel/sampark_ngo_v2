@@ -16,6 +16,16 @@ export async function fetchPublicCollection(route,{fetcher=globalThis.fetch,base
   try{const data=await response.json();if(!Array.isArray(data))throw Error('Unexpected response');return data}catch{throw Error('Public API unavailable')}
 }
 
+export class PublicApiError extends Error{constructor(status){super('Public API unavailable');this.status=status}}
+
+export async function publicRequest(route,{method='GET',body,fetcher=globalThis.fetch,base}={}){
+  let response;
+  try{response=await fetcher(apiUrl(route,base),{method,headers:{'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined,credentials:'same-origin'})}catch{throw new PublicApiError(0)}
+  if(!response?.ok)throw new PublicApiError(response?.status||0);
+  if(response.status===204)return null;
+  try{return await response.json()}catch{return null}
+}
+
 export class AdminApiError extends Error{constructor(status){super('Admin API unavailable');this.status=status}}
 
 export async function adminRequest(route,{method='GET',body,fetcher=globalThis.fetch,base}={}){
