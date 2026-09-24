@@ -1,0 +1,11 @@
+import{describe,it,expect,vi}from'vitest';
+import{apiBase,apiUrl,fetchPublicCollection,publicImageUrl}from'../src/lib/api.js';
+
+describe('H2 public API client',()=>{
+  it('uses same-origin API URLs when no base is configured',()=>{expect(apiBase('')).toBe('');expect(apiUrl('/api/gallery','')).toBe('/api/gallery');expect(apiUrl('api/members','')).toBe('/api/members')});
+  it('normalizes a configured API base without double slashes',()=>{expect(apiUrl('/api/gallery','https://api.example.org/')).toBe('https://api.example.org/api/gallery');expect(apiUrl('/api/members','https://api.example.org')).toBe('https://api.example.org/api/members')});
+  it('loads gallery data from the Express endpoint',async()=>{const gallery=[{id:1,title:'Event',image_path:'uploads/gallery/event.png'}],fetcher=vi.fn().mockResolvedValue({ok:true,json:async()=>gallery});await expect(fetchPublicCollection('/api/gallery',{fetcher,base:''})).resolves.toEqual(gallery);expect(fetcher).toHaveBeenCalledWith('/api/gallery')});
+  it('loads members data from the Express endpoint',async()=>{const members=[{id:1,name:'Member',photo_path:'uploads/members/member.png'}],fetcher=vi.fn().mockResolvedValue({ok:true,json:async()=>members});await expect(fetchPublicCollection('/api/members',{fetcher,base:'https://api.example.org'})).resolves.toEqual(members);expect(fetcher).toHaveBeenCalledWith('https://api.example.org/api/members')});
+  it('resolves relative and absolute public image URLs safely',()=>{expect(publicImageUrl('uploads/gallery/a.png','')).toBe('/uploads/gallery/a.png');expect(publicImageUrl('/uploads/members/a.png','https://api.example.org/')).toBe('https://api.example.org/uploads/members/a.png');expect(publicImageUrl('https://cdn.example/a.png','https://api.example.org')).toBe('https://cdn.example/a.png')});
+  it('handles API and JSON failures without exposing server details',async()=>{await expect(fetchPublicCollection('/api/gallery',{fetcher:vi.fn().mockResolvedValue({ok:false})})).rejects.toThrow('Public API unavailable');await expect(fetchPublicCollection('/api/members',{fetcher:vi.fn().mockRejectedValue(Error('network details'))})).rejects.toThrow('Public API unavailable');await expect(fetchPublicCollection('/api/gallery',{fetcher:vi.fn().mockResolvedValue({ok:true,json:async()=>({})})})).rejects.toThrow('Public API unavailable')});
+});
