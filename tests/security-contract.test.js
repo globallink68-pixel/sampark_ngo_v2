@@ -1,0 +1,3 @@
+import {describe,it,expect} from 'vitest';import {readFileSync} from 'node:fs';import{validateDonation}from'../src/lib/checkout.js';
+const migration=readFileSync('supabase/migrations/202609240001_initial.sql','utf8');const app=readFileSync('src/main.jsx','utf8');
+describe('security contracts',()=>{it('enables RLS and avoids a browser payment secret',()=>{expect(migration).toMatch(/gallery_items enable row level security/);expect(migration).toMatch(/public\.is_admin\(\)/);expect(app).not.toMatch(/RAZORPAY_KEY_SECRET/)});it('keeps inactive members out of public query',()=>expect(app).toMatch(/eq\('active',true\)/));it('requires a minimum donation amount',()=>expect(()=>validateDonation({name:'a',email:'a@b.co',mobile:'1',amount:'99'})).toThrow());});

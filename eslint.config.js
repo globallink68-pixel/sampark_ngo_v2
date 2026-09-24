@@ -1,0 +1,1 @@
+import js from '@eslint/js';export default [js.configs.recommended,{ignores:['dist/**','node_modules/**'],languageOptions:{globals:{crypto:'readonly',location:'readonly',URL:'readonly',confirm:'readonly',window:'readonly',document:'readonly'}}}];

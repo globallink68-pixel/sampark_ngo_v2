@@ -1,0 +1,3 @@
+# Costs and free-tier limits
+
+The target is no planned fixed infrastructure subscription beyond `samparkacademy.org` domain renewal while use remains within available free tiers. The current architecture does not require a Hostinger VPS. Use a free static host, Supabase free tier for PostgreSQL/Auth/Storage/Functions, and provider-managed free SSL. Git hosting can also be free. Razorpay transaction charges may apply. Free-tier terms and pricing can change; traffic, storage, database, function, or support growth can require paid plans. Domain renewal remains separate and the domain stays portable between hosts.
