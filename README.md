@@ -1,15 +1,11 @@
 # Sam Park Academy
 
-React/Vite public website backed by Supabase PostgreSQL, Auth and Storage. Admin users manage gallery images and members; public images are read-only. Contact is submitted through a server-side Edge Function with honeypot and optional Cloudflare Turnstile verification. Donations use Razorpay Checkout, server-side order creation, signature verification, and idempotent webhook processing.
+React/Vite frontend with an Express and MySQL-compatible backend for public Gallery/Members, signed-cookie administration, contact/Turnstile, filesystem uploads, and Razorpay order/verification/webhooks.
 
 ## Local setup
 
-Copy `.env.example` to `.env.local`, install dependencies, then run `npm run dev`. Use `npm run lint`, `npm test`, `npm run build`, and `npm run check:env` before staging. See `DEPLOYMENT.md` for deployment stages.
+Copy `.env.example` to `.env.local`, install dependencies, and run `npm run dev`. Run the API with `npm start`. Validate with `npm run lint`, `npm test`, `npm run build`, and `npm run check:env`.
 
-## Variables
+Public browser configuration is `VITE_API_BASE_URL`, `VITE_RAZORPAY_KEY_ID`, and `VITE_TURNSTILE_SITE_KEY`. All `VITE_*` values are public. Server-only configuration includes `APP_ORIGIN`, database credentials, `SESSION_SECRET`, Razorpay secrets, and `TURNSTILE_SECRET_KEY`.
 
-`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_RAZORPAY_KEY_ID`, and `VITE_TURNSTILE_SITE_KEY` are public browser configuration. Every `VITE_*` value is bundled into the frontend: never put secrets in one. `SUPABASE_SERVICE_ROLE_KEY`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`, and `TURNSTILE_SECRET_KEY` belong only in Supabase Edge Function secrets.
-
-## Testing and staging
-
-Tests use mocks/pure behavior tests and do not replace real Supabase, Razorpay TEST, or Turnstile TEST verification. Database migrations and backup/export guidance remain in `supabase/` and `DEPLOYMENT.md`.
+See `HOSTINGER_MIGRATION.md` for H6 staging and deployment verification. Local tests use doubles and do not replace real Hostinger MySQL, Turnstile, or Razorpay TEST validation.

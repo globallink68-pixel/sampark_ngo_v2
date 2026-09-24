@@ -1,6 +1,6 @@
 # Hostinger migration
 
-H1 is complete: H1A provides Express/MySQL auth, gallery, members, contact, uploads, and same-origin CSRF protection; H1B provides Razorpay order creation, verification, and raw-body webhook handling. The React/Vite frontend remains on Supabase during H1. H2-H5 will move public APIs, administration, Contact/Razorpay, and then remove Supabase. H6 is real Hostinger staging.
+H1-H5 are complete. The React/Vite frontend and Express/MySQL backend now own public APIs, signed-cookie administration, Contact/Turnstile, Razorpay, webhooks, and filesystem uploads. H6 is real Hostinger staging/deployment.
 
 ## H6 production-staging sequence
 
@@ -11,10 +11,10 @@ H1 is complete: H1A provides Express/MySQL auth, gallery, members, contact, uplo
 5. Deploy and start the Node Web App.
 6. Verify the health/API responses.
 7. Verify real MySQL-backed operations.
-8. Test Gallery upload.
-9. Verify its image URL.
+8. Test Gallery and Member uploads.
+9. Verify their image URLs.
 10. Restart or redeploy the application.
-11. Confirm the uploaded image still exists.
+11. Confirm uploaded files still exist.
 12. Test image replacement and old-file cleanup.
 13. Test deletion and physical-file cleanup.
 14. Configure and test Turnstile.

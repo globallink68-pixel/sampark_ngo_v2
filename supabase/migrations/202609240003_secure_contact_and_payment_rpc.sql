@@ -1,3 +1,0 @@
-drop policy if exists "public contact submit" on public.contact_messages;
-create or replace function public.apply_payment_result(p_order text,p_payment text,p_status text) returns boolean language plpgsql security definer set search_path=public as $$declare updated integer; begin if p_status not in ('paid','failed') then raise exception 'invalid status'; end if; update donations set status=p_status,razorpay_payment_id=case when p_status='paid' then p_payment else razorpay_payment_id end,updated_at=now() where razorpay_order_id=p_order and status<>'paid'; get diagnostics updated=row_count; return updated=1; end$$;
-revoke all on function public.apply_payment_result(text,text,text) from public;
