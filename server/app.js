@@ -72,6 +72,17 @@ export function createApp(options={}){
     if(to){clauses.push('created_at<date_add(?, interval 1 day)');params.push(to)}
     return{where:clauses.length?` where ${clauses.join(' and ')}`:'',params};
   };
+  const organizationColumns=['organization_name','tagline','short_description','address','city','state','postal_code','primary_email','secondary_email','primary_phone','secondary_phone','whatsapp_number','facebook_url','instagram_url','youtube_url','linkedin_url','google_maps_url','website_url'];
+  const publicOrganization=record=>Object.fromEntries(organizationColumns.filter(column=>Object.hasOwn(record,column)).map(column=>[column,record[column]]));
+  const organizationInput=body=>{
+    if(!body||typeof body!=='object'||Array.isArray(body))return null;
+    const text=(key,max,required=false)=>{const value=body[key];if(value===undefined||value===null)return required?null:'';if(typeof value!=='string')return null;const normalized=value.trim();return normalized.length<=max&&!/[<>]/.test(normalized)&&(normalized||!required)?normalized:null};
+    const email=(key,required=false)=>{const value=text(key,254,required);return value===null||!value&&!required?value:/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)?value:null};
+    const phone=(key,required=false)=>{const value=text(key,30,required);return value===null||!value&&!required?value:/^[0-9+()\-\s]{7,30}$/.test(value)?value:null};
+    const url=key=>{const value=text(key,500);if(value===null||!value)return value;try{const parsed=new URL(value);return['http:','https:'].includes(parsed.protocol)?parsed.href:null}catch{return null}};
+    const result={organization_name:text('organization_name',160,true),tagline:text('tagline',255),short_description:text('short_description',1000),address:text('address',500),city:text('city',120),state:text('state',120),postal_code:text('postal_code',20),primary_email:email('primary_email',true),secondary_email:email('secondary_email'),primary_phone:phone('primary_phone',true),secondary_phone:phone('secondary_phone'),whatsapp_number:phone('whatsapp_number'),facebook_url:url('facebook_url'),instagram_url:url('instagram_url'),youtube_url:url('youtube_url'),linkedin_url:url('linkedin_url'),google_maps_url:url('google_maps_url'),website_url:url('website_url')};
+    return Object.values(result).some(value=>value===null)?null:result;
+  };
 
   app.use(helmet());
   app.use(cookieParser());
@@ -134,9 +145,11 @@ export function createApp(options={}){
   app.get('/api/gallery',async(request,response)=>response.json((await db().execute('select id,title,description,image_path,event_date,display_order from gallery_items where active=1 order by display_order,id'))[0]));
   app.get('/api/members',async(request,response)=>response.json((await db().execute('select id,name,designation,bio,photo_path,display_order from members where active=1 order by display_order,id'))[0]));
   app.get('/api/programs',async(request,response)=>response.json((await db().execute('select id,title,short_description,description,image_path,location,start_date,end_date,status,display_order from programs where active=1 order by display_order,id'))[0]));
+  app.get('/api/organization',async(request,response)=>{const[rows]=await db().execute(`select ${organizationColumns.join(',')} from organization_settings where id=1`);return response.json(rows[0]?publicOrganization(rows[0]):{})});
   app.get('/api/admin/gallery',admin,async(request,response)=>response.json((await db().execute('select * from gallery_items order by created_at desc'))[0]));
   app.get('/api/admin/members',admin,async(request,response)=>response.json((await db().execute('select * from members order by display_order,id'))[0]));
   app.get('/api/admin/programs',admin,async(request,response)=>response.json((await db().execute('select * from programs order by display_order,id'))[0]));
+  app.get('/api/admin/organization',admin,async(request,response)=>{const[rows]=await db().execute(`select ${organizationColumns.join(',')} from organization_settings where id=1`);return response.json(rows[0]||{})});
   for(const[kind,columns]of [['gallery',['title','description','event_date','display_order','active','image_path']],['members',['name','designation','bio','display_order','active','photo_path']]]){
     const image=kind==='gallery'?'image_path':'photo_path',table=kind==='gallery'?'gallery_items':'members';
     app.post(`/api/admin/${kind}`,admin,sameOrigin,upload(kind).single('image'),async(request,response)=>{if(!request.body[columns[0]])return response.sendStatus(400);const values=columns.map(column=>column===image?publicPath(request.file,kind):(request.body[column]??null));try{const[result]=await db().execute(`insert into ${table} (${columns.join(',')}) values (${columns.map(()=>'?').join(',')})`,values);response.status(201).json({id:result.insertId})}catch(error){await remove(publicPath(request.file,kind),kind);throw error}});
@@ -166,6 +179,7 @@ export function createApp(options={}){
     await remove(old.image_path,'programs');
     return response.sendStatus(204);
   });
+  app.put('/api/admin/organization',admin,sameOrigin,async(request,response)=>{const input=organizationInput(request.body);if(!input)return response.sendStatus(400);const values=organizationColumns.map(column=>input[column]||null);await db().execute(`insert into organization_settings (id,${organizationColumns.join(',')}) values (1,${organizationColumns.map(()=>'?').join(',')}) on duplicate key update ${organizationColumns.map(column=>`${column}=values(${column})`).join(',')}`,values);return response.json(input)});
   app.get('/api/admin/contact-messages',admin,async(request,response)=>response.json((await db().execute('select * from contact_messages order by id desc'))[0]));
   app.get('/api/admin/donations',admin,async(request,response)=>{const filters=donationFilters(request.query);if(!filters)return response.sendStatus(400);return response.json((await db().execute(`select id,donor_name,donor_email,donor_mobile,amount,currency,status,razorpay_order_id,razorpay_payment_id,created_at from donations${filters.where} order by created_at desc,id desc`,filters.params))[0])});
   app.get('/api/admin/donations/summary',admin,async(request,response)=>{const filters=donationFilters(request.query);if(!filters)return response.sendStatus(400);const[rows]=await db().execute(`select coalesce(sum(case when status='paid' then amount else 0 end),0) as paid_amount,coalesce(sum(status='paid'),0) as paid_count,coalesce(sum(status='created'),0) as created_count,coalesce(sum(status='failed'),0) as failed_count from donations${filters.where}`,filters.params);return response.json(rows[0]||{paid_amount:0,paid_count:0,created_count:0,failed_count:0})});
