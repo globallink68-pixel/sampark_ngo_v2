@@ -18,7 +18,7 @@ export async function startCheckout({donor,onState,request=publicRequest,load=lo
   const Razorpay=await load();
   onState('checkout_open');
   return new Promise((resolve,reject)=>{
-    const checkout=new Razorpay({key,order_id:order.id,amount:order.amount,currency:order.currency,name:'Sam Park Academy',prefill:{name:payload.name,email:payload.email,contact:payload.mobile},handler:async response=>{try{onState('verifying');await request('/api/donations/verify-payment',{method:'POST',body:{razorpay_order_id:response.razorpay_order_id,razorpay_payment_id:response.razorpay_payment_id,razorpay_signature:response.razorpay_signature}});onState('success');resolve()}catch{onState('failed');reject(Error('Payment verification failed.'))}},modal:{ondismiss:()=>{onState('cancelled');reject(Error('Payment cancelled.'))}}});
+    const checkout=new Razorpay({key,order_id:order.id,amount:order.amount,currency:order.currency,name:'Sampark Academy',prefill:{name:payload.name,email:payload.email,contact:payload.mobile},handler:async response=>{try{onState('verifying');await request('/api/donations/verify-payment',{method:'POST',body:{razorpay_order_id:response.razorpay_order_id,razorpay_payment_id:response.razorpay_payment_id,razorpay_signature:response.razorpay_signature}});onState('success');resolve()}catch{onState('failed');reject(Error('Payment verification failed.'))}},modal:{ondismiss:()=>{onState('cancelled');reject(Error('Payment cancelled.'))}}});
     checkout.on('payment.failed',()=>{onState('failed');reject(Error('Payment failed.'))});
     checkout.open();
   });

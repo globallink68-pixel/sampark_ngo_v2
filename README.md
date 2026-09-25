@@ -1,4 +1,4 @@
-# Sam Park Academy
+# Sampark Academy
 
 React/Vite frontend with an Express and MySQL-compatible backend for public Gallery/Members, signed-cookie administration, contact/Turnstile, filesystem uploads, and Razorpay order/verification/webhooks.
 
