@@ -22,8 +22,9 @@ export function createApp(options={}){
   const distRoot=path.resolve(options.distRoot||path.join(projectRoot,'dist'));
   const distIndex=path.join(distRoot,'index.html');
   const hasDist=fsSync.existsSync(distIndex)&&fsSync.statSync(distIndex).isFile();
-  const uploadRoot=path.resolve(options.uploadRoot||path.join(process.cwd(),'uploads'));
-  const dirs={gallery:path.join(uploadRoot,'gallery'),members:path.join(uploadRoot,'members')};
+  const configuredUploadRoot=typeof process.env.UPLOAD_ROOT==='string'&&process.env.UPLOAD_ROOT.trim()?process.env.UPLOAD_ROOT.trim():null;
+  const uploadRoot=path.resolve(options.uploadRoot??configuredUploadRoot??path.join(process.cwd(),'uploads'));
+  const dirs={gallery:path.join(uploadRoot,'gallery'),members:path.join(uploadRoot,'members'),programs:path.join(uploadRoot,'programs')};
   for(const dir of Object.values(dirs))fsSync.mkdirSync(dir,{recursive:true});
   const razorpay=options.razorpay;
   const app=express();
@@ -40,7 +41,7 @@ export function createApp(options={}){
   const publicPath=(file,kind)=>file?`uploads/${kind}/${file.filename}`:null;
   const remove=async(storedPath,kind)=>{
     const root=path.resolve(dirs[kind]);
-    const stored=String(storedPath||'').replaceAll('\\','/').replace(/^\/?uploads\/(gallery|members)\//,'');
+    const stored=String(storedPath||'').replaceAll('\\','/').replace(/^\/?uploads\/(gallery|members|programs)\//,'');
     const target=path.resolve(root,stored);
     const relative=path.relative(root,target);
     if(relative&&!relative.startsWith('..')&&!path.isAbsolute(relative))await fs.unlink(target).catch(()=>{});
@@ -49,6 +50,28 @@ export function createApp(options={}){
   const orderId=value=>typeof value==='string'&&value.trim().length>0&&value.length<=80?value.trim():null;
   const paymentId=value=>typeof value==='string'&&value.trim().length>0&&value.length<=80?value.trim():null;
   const paymentSignature=value=>typeof value==='string'&&/^[a-f0-9]{64}$/i.test(value)?value.toLowerCase():null;
+  const date=value=>value===undefined||value===null||value===''?null:/^\d{4}-\d{2}-\d{2}$/.test(value)&&!Number.isNaN(Date.parse(`${value}T00:00:00Z`))?value:null;
+  const programInput=body=>{
+    const title=typeof body.title==='string'?body.title.trim():'';
+    const shortDescription=typeof body.short_description==='string'?body.short_description.trim():'';
+    const description=typeof body.description==='string'?body.description.trim():'';
+    const location=typeof body.location==='string'?body.location.trim():'';
+    const status=typeof body.status==='string'?body.status.trim():'';
+    const startDate=date(body.start_date),endDate=date(body.end_date);
+    const displayOrder=Number(body.display_order??0),active=String(body.active??'1');
+    if(!title||title.length>160||shortDescription.length>500||description.length>10000||location.length>255||!['upcoming','ongoing','completed'].includes(status)||body.start_date&&startDate===null||body.end_date&&endDate===null||startDate&&endDate&&startDate>endDate||!Number.isInteger(displayOrder)||displayOrder<-1000000||displayOrder>1000000||!['0','1'].includes(active))return null;
+    return{title,shortDescription:shortDescription||null,description:description||null,location:location||null,status,startDate,endDate,displayOrder,active:Number(active)};
+  };
+  const donationFilters=query=>{
+    const clauses=[],params=[];
+    if(query.status!==undefined){if(!['created','paid','failed'].includes(query.status))return null;clauses.push('status=?');params.push(query.status)}
+    if(query.search!==undefined){const search=String(query.search).trim();if(search.length>120)return null;if(search){clauses.push('(donor_name like ? or donor_email like ? or donor_mobile like ?)');params.push(...Array(3).fill(`%${search}%`))}}
+    const from=date(query.from),to=date(query.to);
+    if(query.from&&from===null||query.to&&to===null||from&&to&&from>to)return null;
+    if(from){clauses.push('created_at>=?');params.push(from)}
+    if(to){clauses.push('created_at<date_add(?, interval 1 day)');params.push(to)}
+    return{where:clauses.length?` where ${clauses.join(' and ')}`:'',params};
+  };
 
   app.use(helmet());
   app.use(cookieParser());
@@ -110,16 +133,42 @@ export function createApp(options={}){
 
   app.get('/api/gallery',async(request,response)=>response.json((await db().execute('select id,title,description,image_path,event_date,display_order from gallery_items where active=1 order by display_order,id'))[0]));
   app.get('/api/members',async(request,response)=>response.json((await db().execute('select id,name,designation,bio,photo_path,display_order from members where active=1 order by display_order,id'))[0]));
+  app.get('/api/programs',async(request,response)=>response.json((await db().execute('select id,title,short_description,description,image_path,location,start_date,end_date,status,display_order from programs where active=1 order by display_order,id'))[0]));
   app.get('/api/admin/gallery',admin,async(request,response)=>response.json((await db().execute('select * from gallery_items order by created_at desc'))[0]));
   app.get('/api/admin/members',admin,async(request,response)=>response.json((await db().execute('select * from members order by display_order,id'))[0]));
+  app.get('/api/admin/programs',admin,async(request,response)=>response.json((await db().execute('select * from programs order by display_order,id'))[0]));
   for(const[kind,columns]of [['gallery',['title','description','event_date','display_order','active','image_path']],['members',['name','designation','bio','display_order','active','photo_path']]]){
     const image=kind==='gallery'?'image_path':'photo_path',table=kind==='gallery'?'gallery_items':'members';
     app.post(`/api/admin/${kind}`,admin,sameOrigin,upload(kind).single('image'),async(request,response)=>{if(!request.body[columns[0]])return response.sendStatus(400);const values=columns.map(column=>column===image?publicPath(request.file,kind):(request.body[column]??null));try{const[result]=await db().execute(`insert into ${table} (${columns.join(',')}) values (${columns.map(()=>'?').join(',')})`,values);response.status(201).json({id:result.insertId})}catch(error){await remove(publicPath(request.file,kind),kind);throw error}});
     app.put(`/api/admin/${kind}/:id`,admin,sameOrigin,upload(kind).single('image'),async(request,response)=>{const[records]=await db().execute(`select * from ${table} where id=?`,[request.params.id]);const old=records[0];if(!old){await remove(publicPath(request.file,kind),kind);return response.sendStatus(404)}const values=columns.map(column=>column===image?(publicPath(request.file,kind)||old[image]):(request.body[column]??old[column]));try{await db().execute(`update ${table} set ${columns.map(column=>`${column}=?`).join(',')} where id=?`,[...values,request.params.id]);if(request.file)await remove(old[image],kind);response.json({id:Number(request.params.id)})}catch(error){await remove(publicPath(request.file,kind),kind);throw error}});
     app.delete(`/api/admin/${kind}/:id`,admin,sameOrigin,async(request,response)=>{const[records]=await db().execute(`select * from ${table} where id=?`,[request.params.id]);const old=records[0];if(!old)return response.sendStatus(404);await db().execute(`delete from ${table} where id=?`,[request.params.id]);await remove(old[image],kind);response.sendStatus(204)});
   }
+  app.post('/api/admin/programs',admin,sameOrigin,upload('programs').single('image'),async(request,response)=>{
+    const input=programInput(request.body);
+    if(!input){await remove(publicPath(request.file,'programs'),'programs');return response.sendStatus(400)}
+    const values=[input.title,input.shortDescription,input.description,publicPath(request.file,'programs'),input.location,input.startDate,input.endDate,input.status,input.displayOrder,input.active];
+    try{const[result]=await db().execute('insert into programs (title,short_description,description,image_path,location,start_date,end_date,status,display_order,active) values (?,?,?,?,?,?,?,?,?,?)',values);return response.status(201).json({id:result.insertId})}catch(error){await remove(publicPath(request.file,'programs'),'programs');throw error}
+  });
+  app.put('/api/admin/programs/:id',admin,sameOrigin,upload('programs').single('image'),async(request,response)=>{
+    const[records]=await db().execute('select * from programs where id=?',[request.params.id]);
+    const old=records[0];
+    if(!old){await remove(publicPath(request.file,'programs'),'programs');return response.sendStatus(404)}
+    const input=programInput({...old,...request.body});
+    if(!input){await remove(publicPath(request.file,'programs'),'programs');return response.sendStatus(400)}
+    const image=publicPath(request.file,'programs')||old.image_path;
+    try{await db().execute('update programs set title=?,short_description=?,description=?,image_path=?,location=?,start_date=?,end_date=?,status=?,display_order=?,active=? where id=?',[input.title,input.shortDescription,input.description,image,input.location,input.startDate,input.endDate,input.status,input.displayOrder,input.active,request.params.id]);if(request.file)await remove(old.image_path,'programs');return response.json({id:Number(request.params.id)})}catch(error){await remove(publicPath(request.file,'programs'),'programs');throw error}
+  });
+  app.delete('/api/admin/programs/:id',admin,sameOrigin,async(request,response)=>{
+    const[records]=await db().execute('select * from programs where id=?',[request.params.id]);
+    const old=records[0];
+    if(!old)return response.sendStatus(404);
+    await db().execute('delete from programs where id=?',[request.params.id]);
+    await remove(old.image_path,'programs');
+    return response.sendStatus(204);
+  });
   app.get('/api/admin/contact-messages',admin,async(request,response)=>response.json((await db().execute('select * from contact_messages order by id desc'))[0]));
-  app.get('/api/admin/donations',admin,async(request,response)=>response.json((await db().execute('select * from donations order by id desc'))[0]));
+  app.get('/api/admin/donations',admin,async(request,response)=>{const filters=donationFilters(request.query);if(!filters)return response.sendStatus(400);return response.json((await db().execute(`select id,donor_name,donor_email,donor_mobile,amount,currency,status,razorpay_order_id,razorpay_payment_id,created_at from donations${filters.where} order by created_at desc,id desc`,filters.params))[0])});
+  app.get('/api/admin/donations/summary',admin,async(request,response)=>{const filters=donationFilters(request.query);if(!filters)return response.sendStatus(400);const[rows]=await db().execute(`select coalesce(sum(case when status='paid' then amount else 0 end),0) as paid_amount,coalesce(sum(status='paid'),0) as paid_count,coalesce(sum(status='created'),0) as created_count,coalesce(sum(status='failed'),0) as failed_count from donations${filters.where}`,filters.params);return response.json(rows[0]||{paid_amount:0,paid_count:0,created_count:0,failed_count:0})});
   if(hasDist){
     app.use(express.static(distRoot,{index:false,dotfiles:'deny'}));
     app.use((request,response,next)=>{
