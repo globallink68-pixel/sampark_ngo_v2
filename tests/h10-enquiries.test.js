@@ -1,11 +1,13 @@
 import{beforeEach,describe,it,expect,vi}from'vitest';
 import request from'supertest';
 import bcrypt from'bcryptjs';
+import{readFileSync}from'node:fs';
 const execute=vi.fn();vi.mock('../server/config/db.js',()=>({db:()=>({execute})}));process.env.SESSION_SECRET='h10-test-session-secret-at-least-32-characters';const{createApp}=await import('../server/app.js');let app;
 beforeEach(()=>{execute.mockReset();global.fetch=vi.fn();app=createApp({uploadRoot:'h10-test-uploads'})});
 const payload={name:'A Person',address:'Road',city:'Pune',state:'MH',postal_code:'411001',email:'a@example.org',mobile:'+91 9876543210',subject:'Help',message:'Please contact me.',consent:true,turnstile_token:'token'};
 const login=async()=>{execute.mockResolvedValueOnce([[{id:1,email:'admin@test.org',password_hash:await bcrypt.hash('strong-password-123',4)}]]);return(await request(app).post('/api/auth/login').send({email:'admin@test.org',password:'strong-password-123'})).headers['set-cookie'][0]};const allow=()=>execute.mockResolvedValueOnce([[{id:1}]])
 describe('H10 enquiries',()=>{
+ it('does not rely on an implicit React namespace in the public Contact route',()=>expect(readFileSync('src/main.jsx','utf8')).not.toMatch(/\bReact\./));
  it('accepts a valid verified enquiry with server-controlled new status',async()=>{global.fetch.mockResolvedValueOnce({ok:true,json:async()=>({success:true})});execute.mockResolvedValueOnce([{}]);expect((await request(app).post('/api/contact').send({...payload,status:'resolved',admin_notes:'x'})).status).toBe(201);expect(execute.mock.calls.at(-1)[0]).toMatch(/'new'/);expect(execute.mock.calls.at(-1)[1]).not.toContain('resolved')});
  it('rejects missing consent, invalid email, and invalid mobile before insert',async()=>{for(const data of[{...payload,consent:false},{...payload,email:'bad'},{...payload,mobile:'bad'}])expect((await request(app).post('/api/contact').send(data)).status).toBe(400);expect(execute).not.toHaveBeenCalled()});
  it('protects enquiry management and supports filtered newest lists',async()=>{expect((await request(app).get('/api/admin/contact-messages')).status).toBe(401);const cookie=await login();allow();execute.mockResolvedValueOnce([[{id:1,status:'new'}]]);expect((await request(app).get('/api/admin/contact-messages?status=new&search=person').set('Cookie',cookie)).body).toEqual([{id:1,status:'new'}]);expect(execute.mock.calls.at(-1)[0]).toMatch(/order by created_at desc,id desc/)});
