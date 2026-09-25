@@ -26,14 +26,14 @@ export async function publicRequest(route,{method='GET',body,fetcher=globalThis.
   try{return await response.json()}catch{return null}
 }
 
-export class AdminApiError extends Error{constructor(status){super('Admin API unavailable');this.status=status}}
+export class AdminApiError extends Error{constructor(status,message=''){super(message||'Admin API unavailable');this.status=status;this.safeMessage=message}}
 
 export async function adminRequest(route,{method='GET',body,fetcher=globalThis.fetch,base}={}){
   const headers={};
   if(body&&!(body instanceof globalThis.FormData))headers['Content-Type']='application/json';
   let response;
   try{response=await fetcher(apiUrl(route,base),{method,headers,body:body&&!(body instanceof globalThis.FormData)?JSON.stringify(body):body,credentials:'include'})}catch{throw new AdminApiError(0)}
-  if(!response?.ok)throw new AdminApiError(response?.status||0);
+  if(!response?.ok){let message='';try{const payload=await response?.json();message=typeof payload?.error==='string'&&payload.error.length<=200&&!/[<>]/.test(payload.error)?payload.error:''}catch{message=''}throw new AdminApiError(response?.status||0,message)}
   if(response.status===204)return null;
-  try{return await response.json()}catch{throw new AdminApiError(response.status)}
+  try{return await response.json()}catch{return null}
 }
