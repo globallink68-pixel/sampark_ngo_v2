@@ -72,7 +72,7 @@ export function createApp(options={}){
     if(to){clauses.push('created_at<date_add(?, interval 1 day)');params.push(to)}
     return{where:clauses.length?` where ${clauses.join(' and ')}`:'',params};
   };
-  const organizationColumns=['organization_name','tagline','short_description','address','city','state','postal_code','primary_email','secondary_email','primary_phone','secondary_phone','whatsapp_number','facebook_url','instagram_url','youtube_url','linkedin_url','google_maps_url','website_url'];
+  const organizationColumns=['organization_name','tagline','short_description','address','city','state','postal_code','primary_email','secondary_email','primary_phone','secondary_phone','whatsapp_number','facebook_url','instagram_url','youtube_url','linkedin_url','threads_url','x_url','google_maps_url','website_url'];
   const publicOrganization=record=>Object.fromEntries(organizationColumns.filter(column=>Object.hasOwn(record,column)).map(column=>[column,record[column]]));
   const organizationInput=body=>{
     if(!body||typeof body!=='object'||Array.isArray(body))return null;
@@ -80,7 +80,7 @@ export function createApp(options={}){
     const email=(key,required=false)=>{const value=text(key,254,required);return value===null||!value&&!required?value:/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)?value:null};
     const phone=(key,required=false)=>{const value=text(key,30,required);return value===null||!value&&!required?value:/^[0-9+()\-\s]{7,30}$/.test(value)?value:null};
     const url=key=>{const value=text(key,500);if(value===null||!value)return value;try{const parsed=new URL(value);return['http:','https:'].includes(parsed.protocol)?parsed.href:null}catch{return null}};
-    const result={organization_name:text('organization_name',160,true),tagline:text('tagline',255),short_description:text('short_description',1000),address:text('address',500),city:text('city',120),state:text('state',120),postal_code:text('postal_code',20),primary_email:email('primary_email',true),secondary_email:email('secondary_email'),primary_phone:phone('primary_phone',true),secondary_phone:phone('secondary_phone'),whatsapp_number:phone('whatsapp_number'),facebook_url:url('facebook_url'),instagram_url:url('instagram_url'),youtube_url:url('youtube_url'),linkedin_url:url('linkedin_url'),google_maps_url:url('google_maps_url'),website_url:url('website_url')};
+    const result={organization_name:text('organization_name',160,true),tagline:text('tagline',255),short_description:text('short_description',1000),address:text('address',500),city:text('city',120),state:text('state',120),postal_code:text('postal_code',20),primary_email:email('primary_email',true),secondary_email:email('secondary_email'),primary_phone:phone('primary_phone',true),secondary_phone:phone('secondary_phone'),whatsapp_number:phone('whatsapp_number'),facebook_url:url('facebook_url'),instagram_url:url('instagram_url'),youtube_url:url('youtube_url'),linkedin_url:url('linkedin_url'),threads_url:url('threads_url'),x_url:url('x_url'),google_maps_url:url('google_maps_url'),website_url:url('website_url')};
     return Object.values(result).some(value=>value===null)?null:result;
   };
   const plain=value=>typeof value==='string'&&!/[<>]/.test(value)?value.trim():null;
