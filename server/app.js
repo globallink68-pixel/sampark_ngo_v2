@@ -8,6 +8,7 @@ import Razorpay from'razorpay';
 import fs from'node:fs/promises';
 import fsSync from'node:fs';
 import path from'node:path';
+import{fileURLToPath}from'node:url';
 import crypto from'node:crypto';
 import{db}from'./config/db.js';
 import{admin,issue}from'./middleware/auth.js';
@@ -17,6 +18,10 @@ const paid='paid';
 const duplicate=error=>error?.code==='ER_DUP_ENTRY'||error?.code==='23505';
 
 export function createApp(options={}){
+  const projectRoot=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
+  const distRoot=path.resolve(options.distRoot||path.join(projectRoot,'dist'));
+  const distIndex=path.join(distRoot,'index.html');
+  const hasDist=fsSync.existsSync(distIndex)&&fsSync.statSync(distIndex).isFile();
   const uploadRoot=path.resolve(options.uploadRoot||path.join(process.cwd(),'uploads'));
   const dirs={gallery:path.join(uploadRoot,'gallery'),members:path.join(uploadRoot,'members')};
   for(const dir of Object.values(dirs))fsSync.mkdirSync(dir,{recursive:true});
@@ -115,6 +120,13 @@ export function createApp(options={}){
   }
   app.get('/api/admin/contact-messages',admin,async(request,response)=>response.json((await db().execute('select * from contact_messages order by id desc'))[0]));
   app.get('/api/admin/donations',admin,async(request,response)=>response.json((await db().execute('select * from donations order by id desc'))[0]));
+  if(hasDist){
+    app.use(express.static(distRoot,{index:false,dotfiles:'deny'}));
+    app.use((request,response,next)=>{
+      if(!['GET','HEAD'].includes(request.method)||request.path==='/api'||request.path.startsWith('/api/'))return next();
+      return response.sendFile(distIndex,error=>error?next(error):undefined);
+    });
+  }
   app.use((error,request,response,next)=>response.status(error.code==='LIMIT_FILE_SIZE'?413:400).json({error:'Request failed'}));
   return app;
 }
