@@ -1,6 +1,6 @@
 # Verified Node release scope
 
-Status describes this local implementation, not Flask's earlier test results. Twenty scoped areas: **13 PASS, 7 BLOCKED**. PASS is scoped to the behavior explicitly named; it does not assert complete Flask equivalence.
+Status describes this local implementation, not Flask's earlier test results. Twenty scoped areas: **14 PASS, 6 BLOCKED**. PASS is scoped to the behavior explicitly named; it does not assert complete Flask equivalence.
 
 | Area | Status | Evidence / unresolved difference |
 |---|---|---|
@@ -20,9 +20,11 @@ Status describes this local implementation, not Flask's earlier test results. Tw
 | Approved policy editing/legal safeguards | PASS | Escaped editable policy text; no certificate previews, banking coordinates or QR publication |
 | Contact and abuse controls | PASS | Validation, consent, honeypot and rate limiting; no Turnstile claim |
 | Image and private-data boundaries | PASS | Raster decode/re-encode, pixel/size limits, random names; applications in private database, no file attachments |
-| Complete SEO/error-status parity | BLOCKED | Basic title/description/robots/sitemap retained; per-route metadata and SPA soft-404 behavior not equivalent to Flask |
+| SEO metadata and HTTP error status | PASS | Route-specific escaped server metadata, canonical variant redirects, dynamic public sitemap/robots, real404 and synchronized client/Open Graph metadata; page body remains React-rendered |
 | Synthetic MariaDB integrity | PASS | Fresh and repeated migrations, restrictive FK, transaction and financial integrity checks |
 | Existing database migration adoption | BLOCKED | Local reviewed-schema strategy passes 17 rehearsal checks and 10 focused tests; production ledger remains untouched, historical execution unknown and actual adoption/reconciliation unapproved |
 | Flask mail-outbox/retry parity | BLOCKED | No Node source implementation or delivery configuration; email remains disabled |
 
 No unsupported feature is silently represented as complete. Structured Flask application fields/private attachments, legacy audit completeness, SEO and mail-outbox work remain implementation limitations in addition to the evidence-dependent historical/member blockers. This is a partial upgrade and a synthetic-staging review package, not final production acceptance.
+
+Finalization:191 full regression tests plus7 focused readiness tests pass in separate runs;27 MariaDB checks,126 responsive checks,14 browser interactions and7 production-mode checks pass. Retained recovery18/18 and adoption17/17 were not repeated. See PRODUCTION_BLOCKERS.md for critical/business-approval/deferrable classifications. Direct production readiness remains NO.

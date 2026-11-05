@@ -13,7 +13,7 @@ The current gate decision is **NO: do not cut over**. This plan describes prereq
 | Actual records, financial references and media reconciliation | BLOCKED | No private production rows/files cloned; synthetic preservation proves mechanism, not actual reconciliation |
 | Recoverable backup/restore and original release recovery | BLOCKED | Existing release identified, but recovery/restore procedure and operator evidence not verified in this task |
 | Hosted candidate/native dependencies/persistence | BLOCKED | Existing runtime access is not a candidate build/start/restart test; no new production files or processes permitted in this run |
-| Full feature/source/legal/financial acceptance | BLOCKED | See feature matrix; historical mappings, member consent/identity evidence and remaining audit/forms/SEO/outbox limitations persist |
+| Full feature/source/legal/financial acceptance | BLOCKED | See feature matrix; historical mappings, member consent/identity evidence and remaining audit/forms/outbox limitations persist |
 | Payment/legal hold | PASS for prepared release | Retirement tests remain valid; no unverified QR, banking coordinates or certificates enabled. Future rollback must preserve the same hold |
 
 ## Future direct-domain sequence, only after every required gate passes
@@ -40,4 +40,8 @@ Local work can strengthen schema drift/refusal tests, structured forms, private 
 
 Independent evidence is required for actual donor/receipt/refund/subscription lineage, cross-system identities and timestamps, member validity/consent, authenticated legal/bank/QR documents, recoverable live backup/media reconciliation, Hostinger runtime/persistence and a verified deployment/rollback operation. These cannot be manufactured from a matching schema or synthetic tests.
 
-No new release ZIP is declared production-ready. The prior package remains unchanged and retains its earlier synthetic-staging scope. Direct production readiness: **NO**.
+No new release ZIP is declared production-ready. The prior package is preserved separately; the new verified local candidate remains blocked for production. Direct production readiness: **NO**.
+
+## Final local candidate checkpoint
+
+191 regression tests plus7 focused readiness tests pass in separate executed runs;27 MariaDB integration checks,126 responsive checks,14 browser interactions and7 exact-candidate production-mode smoke checks pass. Zero final failures/skips/browser errors/failed requests/known npm advisories. Retained recovery18/18 and adoption17/17 were not repeated. SEO/status/social metadata and startup-harness issues are resolved. The candidate source-only ZIP is regenerated only after these gates, with the previous ZIP preserved. Direct production readiness remains NO; classifications C1-C6, B1-B3 and D1-D2 are in PRODUCTION_BLOCKERS.md. No public staging hostname is required and no deployment occurred.

@@ -15,6 +15,7 @@ import crypto from'node:crypto';
 import{db}from'./config/db.js';
 import{admin,issue}from'./middleware/auth.js';
 import {tokenHash} from './middleware/session.js';
+import {routeMetadata,renderMetadata,originUrl,publicRoutes,escapeMarkup,normalizeRoute} from './seo.js';
 
 
 
@@ -153,11 +154,31 @@ export function createApp(options={}){
   app.get('/api/admin/donations',admin,async(request,response)=>{const filters=donationFilters(request.query);if(!filters)return response.sendStatus(400);return response.json((await db().execute(`select id,donor_name,donor_email,donor_mobile,amount,currency,status,razorpay_order_id,razorpay_payment_id,created_at from donations${filters.where} order by created_at desc,id desc`,filters.params))[0])});
   app.get('/api/admin/donations/summary',admin,async(request,response)=>{const filters=donationFilters(request.query);if(!filters)return response.sendStatus(400);const[rows]=await db().execute(`select coalesce(sum(case when status='paid' then amount else 0 end),0) as paid_amount,coalesce(sum(status='paid'),0) as paid_count,coalesce(sum(status='created'),0) as created_count,coalesce(sum(status='failed'),0) as failed_count from donations${filters.where}`,filters.params);return response.json(rows[0]||{paid_amount:0,paid_count:0,created_count:0,failed_count:0})});
   workflows(app,sameOrigin);
+  app.get('/api/page-metadata',async(request,response)=>{
+    const route=request.query.path;
+    if(typeof route!=='string'||route.length>2048||!route.startsWith('/')||route.startsWith('//')||/[\x00-\x20?#]/.test(route))return response.sendStatus(400);
+    const metadata=await routeMetadata(route,(...args)=>db().execute(...args));
+    return response.json({...metadata,canonical:originUrl(configuredOrigin)?originUrl(configuredOrigin)+normalizeRoute(route):null});
+  });
   if(hasDist){
+    app.get('/robots.txt',(_request,response)=>response.type('text/plain').send('User-agent: *\nDisallow: /admin\nDisallow: /api/\n'+(originUrl(configuredOrigin)?'Sitemap: '+originUrl(configuredOrigin)+'/sitemap.xml\n':'')));
+    app.get('/sitemap.xml',async(_request,response)=>{
+      const origin=originUrl(configuredOrigin);if(!origin)return response.sendStatus(503);
+      const [programs]=await db().execute('SELECT id FROM programs WHERE active=1 ORDER BY id');
+      const [pages]=await db().execute("SELECT slug,kind FROM content_pages WHERE published=1 AND kind IN ('page','campaign','activity') ORDER BY slug");
+      const paths=[...Object.keys(publicRoutes).filter(p=>!['/search','/verify-member','/members','/our-work','/sponsors'].includes(p)),...programs.map(p=>'/programs/'+p.id),...pages.map(p=>({page:'/pages/',campaign:'/campaigns/',activity:'/activities/'})[p.kind]+p.slug)];
+      if(paths.length>50000)return response.status(503).type('text/plain').send('Sitemap requires an index.');
+      return response.type('application/xml').send('<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'+paths.map(p=>'<url><loc>'+escapeMarkup(origin+p)+'</loc></url>').join('')+'</urlset>');
+    });
     app.use(express.static(distRoot,{index:false,dotfiles:'deny'}));
-    app.use((request,response,next)=>{
+    app.use(async(request,response,next)=>{
       if(!['GET','HEAD'].includes(request.method)||request.path==='/api'||request.path.startsWith('/api/'))return next();
-      return response.sendFile('index.html',{root:distRoot},error=>error?next(error):undefined);
+      const metadata=await routeMetadata(request.path,(...args)=>db().execute(...args));
+      const canonicalPath=normalizeRoute(request.path);
+      if(metadata.status===200&&canonicalPath!==request.path&&!canonicalPath.startsWith('//'))return response.redirect(308,canonicalPath+(request.originalUrl.includes('?')?request.originalUrl.slice(request.originalUrl.indexOf('?')):''));
+      if(metadata.noindex)response.set('X-Robots-Tag','noindex, nofollow');
+      const html=renderMetadata(await fs.readFile(distIndex,'utf8'),metadata,request.path,originUrl(configuredOrigin));
+      return response.status(metadata.status).type('html').send(html);
     });
   }
   app.use((error,request,response,next)=>response.status(error.code==='LIMIT_FILE_SIZE'?413:400).json({error:'Request failed'}));

@@ -11,3 +11,7 @@ Review: an independent read-only reviewer found activity-route mapping and appli
 Unresolved: complete legacy CRUD audit coverage; historical finance/receipt mapping; member verification/consent reconciliation; private attachment workflow; real hosting proxy/client-IP behavior; TLS/persistent-volume acceptance; complete SEO/accessibility/retention review. Application endpoints collect initial enquiries, not every field/file from Flask. No additional roles beyond the existing admin authority are claimed.
 
 The archive is built with a source allowlist and excludes environment files, credentials, production uploads/exports, private documents, donor records, databases, .git, QA data, caches, node_modules and test tooling. Archive verification details are in release/FINAL_RELEASE_VERIFICATION.md.
+
+## Final local candidate checkpoint
+
+191 regression tests plus7 focused readiness tests pass in separate executed runs;27 MariaDB integration checks,126 responsive checks,14 browser interactions and7 exact-candidate production-mode smoke checks pass. Zero final failures/skips/browser errors/failed requests/known npm advisories. Retained recovery18/18 and adoption17/17 were not repeated. SEO/status/social metadata and startup-harness issues are resolved. The candidate source-only ZIP is regenerated only after these gates, with the previous ZIP preserved. Direct production readiness remains NO; classifications C1-C6, B1-B3 and D1-D2 are in PRODUCTION_BLOCKERS.md. No public staging hostname is required and no deployment occurred.
