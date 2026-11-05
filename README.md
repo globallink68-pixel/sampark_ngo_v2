@@ -1,13 +1,11 @@
-# Sampark Academy
+﻿# Sampark Skill Academy — local Node upgrade
 
-React/Vite frontend with an Express and MySQL-compatible backend for public Gallery/Members, signed-cookie administration, contact/Turnstile, filesystem uploads, and Razorpay order/verification/webhooks.
+React + Vite + Express + MariaDB. Implementation is PARTIAL. The source ZIP is for isolated synthetic staging review; it is not approved for production cutover.
 
-## Local setup
+Start with docs/SAMPARK_IMPLEMENTATION_STATE.md and docs/FEATURE_PARITY_MATRIX.md. See release/HOSTINGER_MANUAL_DEPLOYMENT.md for the source-ZIP managed Node.js workflow. Never extract the release over production public_html or run migrations against the current database.
 
-Copy `.env.example` to `.env.local`, install dependencies, and run `npm run dev`. Run the API with `npm start`. Validate with `npm run lint`, `npm test`, `npm run build`, and `npm run check:env`.
+Local verification: npm ci, npm test, npm run lint and npm run build. Run the server only with an explicitly configured local synthetic database. server/server.js uses the host-provided PORT. Payment mutation routes are unconditionally retired; no payment or email credentials are needed.
 
-Public browser configuration is `VITE_API_BASE_URL`, `VITE_RAZORPAY_KEY_ID`, and `VITE_TURNSTILE_SITE_KEY`. All `VITE_*` values are public. Server-only configuration includes `APP_ORIGIN`, `UPLOAD_ROOT`, database credentials, `SESSION_SECRET`, Razorpay secrets, and `TURNSTILE_SECRET_KEY`.
+The integration helper scripts/verify-integration.mjs is intentionally hardcoded to an isolated loopback MariaDB on port 33379 with synthetic-only credentials. It creates a NEW database for every run. It must never be adapted to production. Synthetic MariaDB installation/start instructions and available local evidence are described in docs/SAMPARK_IMPLEMENTATION_STATE.md. Browser script uses the installed Windows Chrome executable; adjust that local test path when using a different test machine. Runtime source remains platform independent.
 
-`UPLOAD_ROOT` is never supplied by the browser. When set, Express resolves it and uses its `gallery`, `members`, and `programs` subdirectories for uploads and for `/uploads` static delivery. Local development/test defaults to `./uploads` when it is blank or unset. In production, set it to a writable persistent directory outside disposable or versioned deployment files; do not assume the deployed application directory survives a redeploy.
-
-See `HOSTINGER_MIGRATION.md` for H6 staging and deployment verification. Local tests use doubles and do not replace real Hostinger MySQL, Turnstile, or Razorpay TEST validation.
+Private application records, databases, environment values and uploads stay outside Git and release archives. No production deployment was performed.
