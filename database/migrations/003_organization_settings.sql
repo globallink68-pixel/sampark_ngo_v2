@@ -1,0 +1,23 @@
+create table if not exists organization_settings(
+  id tinyint unsigned not null primary key,
+  organization_name varchar(160) not null,
+  tagline varchar(255),
+  short_description varchar(1000),
+  address varchar(500),
+  city varchar(120),
+  state varchar(120),
+  postal_code varchar(20),
+  primary_email varchar(254) not null,
+  secondary_email varchar(254),
+  primary_phone varchar(30) not null,
+  secondary_phone varchar(30),
+  whatsapp_number varchar(30),
+  facebook_url varchar(500),
+  instagram_url varchar(500),
+  youtube_url varchar(500),
+  linkedin_url varchar(500),
+  google_maps_url varchar(500),
+  website_url varchar(500),
+  created_at timestamp default current_timestamp,
+  updated_at timestamp default current_timestamp on update current_timestamp
+) charset=utf8mb4;

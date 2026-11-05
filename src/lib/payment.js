@@ -1,0 +1,1 @@
+import {donationPaise} from './validation';export const orderPayload=d=>{const amount=donationPaise(d.amount);if(!d.name||!/^\S+@\S+\.\S+$/.test(d.email)||!amount)throw new Error('Invalid donation details');return {...d,amount:amount/100}};

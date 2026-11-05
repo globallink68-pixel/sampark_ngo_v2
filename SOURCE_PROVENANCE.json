@@ -1,0 +1,14 @@
+{
+  "release": "01a0d883-1b7a-73ef-a602-1932ca4a8f8a",
+  "source": "Hostinger last-source; read-only SSH allowlist; release association limited to previously compared files",
+  "archive_sha256": "ada2682dedb063a4f13c5ee14036a5da7d153c9bc95bc55ff68eebee9fef766a",
+  "files": 56,
+  "excluded": [
+    "environment files",
+    "logs",
+    "uploads",
+    "node_modules",
+    ".git",
+    "databases"
+  ]
+}

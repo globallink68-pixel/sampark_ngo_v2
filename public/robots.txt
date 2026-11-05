@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://samparkacademy.org/sitemap.xml

@@ -1,0 +1,40 @@
+import{afterEach,beforeEach,describe,it,expect,vi}from'vitest';
+import request from'supertest';
+import os from'node:os';
+import fs from'node:fs/promises';
+import path from'node:path';
+import{hmac}from'../server/payments.js';
+
+const execute=vi.fn();
+vi.mock('../server/config/db.js',()=>({db:()=>({execute})}));
+process.env.RAZORPAY_KEY_SECRET='test-razorpay-secret';
+process.env.RAZORPAY_WEBHOOK_SECRET='test-webhook-secret';
+const{createApp}=await import('../server/app.js');
+let app,root,orders;
+
+beforeEach(async()=>{execute.mockReset();root=await fs.mkdtemp(path.join(os.tmpdir(),'sampark-h1b-'));orders={create:vi.fn()};app=createApp({uploadRoot:root,razorpay:{orders}})});
+afterEach(async()=>fs.rm(root,{recursive:true,force:true}));
+const donor={name:'Donor',email:'donor@example.org',mobile:'9999999999',amount:'100.50'};
+const signature=(order,payment)=>hmac(process.env.RAZORPAY_KEY_SECRET,`${order}|${payment}`);
+const paymentBody=(order='order_1',payment='pay_1')=>({razorpay_order_id:order,razorpay_payment_id:payment,razorpay_signature:signature(order,payment)});
+const webhook=(event='payment.captured',overrides={})=>JSON.stringify({event,event_id:'event_1',payload:{payment:{entity:{id:'pay_1',order_id:'order_1'}}},...overrides});
+const signedWebhook=raw=>request(app).post('/api/webhooks/razorpay').set('Content-Type','application/json').set('x-razorpay-signature',hmac(process.env.RAZORPAY_WEBHOOK_SECRET,raw)).send(raw);
+
+describe('H1B Razorpay routes',()=>{
+  it('creates a server-controlled INR order in integer paise',async()=>{orders.create.mockResolvedValueOnce({id:'order_1',amount:10050,currency:'INR'});execute.mockResolvedValueOnce([{}]);const response=await request(app).post('/api/donations/create-order').send(donor);expect(response.status).toBe(201);expect(orders.create).toHaveBeenCalledWith(expect.objectContaining({amount:10050,currency:'INR',receipt:expect.any(String)}));expect(execute.mock.calls[0][1]).toEqual(['Donor','donor@example.org','9999999999',10050,'INR','order_1','created']);expect(response.body).toEqual({id:'order_1',amount:10050,currency:'INR'})});
+  it('rejects invalid, fractional-paise, and below-minimum amounts',async()=>{for(const amount of ['abc','100.001','0','99.99'])expect((await request(app).post('/api/donations/create-order').send({...donor,amount})).status).toBe(400);expect(orders.create).not.toHaveBeenCalled()});
+  it('rejects malformed donor data',async()=>{expect((await request(app).post('/api/donations/create-order').send({...donor,email:'bad'})).status).toBe(400);expect(orders.create).not.toHaveBeenCalled()});
+  it('returns safe failures for provider and database errors',async()=>{orders.create.mockRejectedValueOnce(Error('provider'));expect((await request(app).post('/api/donations/create-order').send(donor)).status).toBe(502);orders.create.mockResolvedValueOnce({id:'order_1',amount:10050,currency:'INR'});execute.mockRejectedValueOnce(Error('database'));expect((await request(app).post('/api/donations/create-order').send(donor)).status).toBe(503)});
+  it('verifies a valid payment signature against its local order',async()=>{execute.mockResolvedValueOnce([[{id:9,amount:10000,currency:'INR',status:'created',razorpay_order_id:'order_1',razorpay_payment_id:null}]]).mockResolvedValueOnce([[]]).mockResolvedValueOnce([{}]);const response=await request(app).post('/api/donations/verify-payment').send(paymentBody());expect(response.status).toBe(200);expect(execute.mock.calls[2][1]).toEqual(['pay_1',9])});
+  it('rejects an invalid signature before payment mutation',async()=>{execute.mockResolvedValueOnce([[{id:9,status:'created',razorpay_order_id:'order_1'}]]);const response=await request(app).post('/api/donations/verify-payment').send({...paymentBody(),razorpay_signature:'0'.repeat(64)});expect(response.status).toBe(400);expect(execute).toHaveBeenCalledTimes(1)});
+  it('rejects unknown and mismatched local orders',async()=>{execute.mockResolvedValueOnce([[]]);expect((await request(app).post('/api/donations/verify-payment').send(paymentBody('order_unknown'))).status).toBe(404);execute.mockResolvedValueOnce([[{id:9,status:'created',razorpay_order_id:'other_order'}]]);expect((await request(app).post('/api/donations/verify-payment').send(paymentBody())).status).toBe(404)});
+  it('makes repeated valid verification idempotent',async()=>{execute.mockResolvedValueOnce([[{id:9,status:'paid',razorpay_order_id:'order_1',razorpay_payment_id:'pay_1'}]]).mockResolvedValueOnce([[]]);const response=await request(app).post('/api/donations/verify-payment').send(paymentBody());expect(response.status).toBe(200);expect(response.body.idempotent).toBe(true);expect(execute).toHaveBeenCalledTimes(2)});
+  it('enforces unique payment IDs and never changes a paid donation',async()=>{execute.mockResolvedValueOnce([[{id:9,status:'created',razorpay_order_id:'order_1'}]]).mockResolvedValueOnce([[{id:10}]]);expect((await request(app).post('/api/donations/verify-payment').send(paymentBody())).status).toBe(409);execute.mockResolvedValueOnce([[{id:9,status:'paid',razorpay_order_id:'order_1',razorpay_payment_id:'pay_old'}]]).mockResolvedValueOnce([[]]);expect((await request(app).post('/api/donations/verify-payment').send(paymentBody())).status).toBe(409)});
+  it('verifies webhook signatures against the exact raw bytes',async()=>{const raw=webhook();execute.mockResolvedValueOnce([{}]).mockResolvedValueOnce([[{id:9,status:'created',razorpay_payment_id:null}]]).mockResolvedValueOnce([{}]).mockResolvedValueOnce([{}]);expect((await signedWebhook(raw)).status).toBe(200);const altered=` ${raw}`;expect((await request(app).post('/api/webhooks/razorpay').set('Content-Type','application/json').set('x-razorpay-signature',hmac(process.env.RAZORPAY_WEBHOOK_SECRET,raw)).send(altered)).status).toBe(400)});
+  it('rejects missing and invalid webhook signatures',async()=>{expect((await request(app).post('/api/webhooks/razorpay').set('Content-Type','application/json').send(webhook())).status).toBe(400);expect((await request(app).post('/api/webhooks/razorpay').set('Content-Type','application/json').set('x-razorpay-signature','bad').send(webhook())).status).toBe(400);expect(execute).not.toHaveBeenCalled()});
+  it('rejects malformed but correctly signed webhook JSON',async()=>{const raw='{not-json';expect((await signedWebhook(raw)).status).toBe(400);expect(execute).not.toHaveBeenCalled()});
+  it('handles replayed webhook events idempotently',async()=>{execute.mockRejectedValueOnce(Object.assign(Error('duplicate'),{code:'ER_DUP_ENTRY'}));const response=await signedWebhook(webhook());expect(response.status).toBe(200);expect(response.body.duplicate).toBe(true);expect(execute).toHaveBeenCalledTimes(1)});
+  it('rejects a valid webhook for an unknown local order',async()=>{execute.mockResolvedValueOnce([{}]).mockResolvedValueOnce([[]]);expect((await signedWebhook(webhook())).status).toBe(404)});
+  it('processes captured and failed webhooks without downgrading paid donations',async()=>{execute.mockResolvedValueOnce([{}]).mockResolvedValueOnce([[{id:9,status:'created',razorpay_payment_id:null}]]).mockResolvedValueOnce([{}]).mockResolvedValueOnce([{}]);expect((await signedWebhook(webhook('payment.captured'))).status).toBe(200);expect(execute.mock.calls[2][0]).toContain("status='paid'");execute.mockReset();execute.mockResolvedValueOnce([{}]).mockResolvedValueOnce([[{id:9,status:'created',razorpay_payment_id:null}]]).mockResolvedValueOnce([{}]).mockResolvedValueOnce([{}]);expect((await signedWebhook(webhook('payment.failed'))).status).toBe(200);expect(execute.mock.calls[2][0]).toContain("status='failed'");execute.mockReset();execute.mockResolvedValueOnce([{}]).mockResolvedValueOnce([[{id:9,status:'paid',razorpay_payment_id:'pay_1'}]]).mockResolvedValueOnce([{}]);expect((await signedWebhook(webhook('payment.failed'))).status).toBe(200);expect(execute.mock.calls.map(call=>call[0]).join(' ')).not.toContain("status='failed'")});
+  it('returns a safe response when webhook event persistence fails',async()=>{execute.mockRejectedValueOnce(Error('database'));expect((await signedWebhook(webhook())).status).toBe(503)});
+});
