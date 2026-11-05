@@ -1,3 +1,4 @@
+import {sessionDatabase} from './helpers/session-database.js';
 import{afterEach,beforeEach,describe,it,expect,vi}from'vitest';
 import request from'supertest';
 import bcrypt from'bcryptjs';
@@ -5,8 +6,8 @@ import os from'node:os';
 import fs from'node:fs/promises';
 import path from'node:path';
 
-const execute=vi.fn();
-vi.mock('../server/config/db.js',()=>({db:()=>({execute})}));
+const execute=vi.fn();const mockExecute=sessionDatabase(execute);
+vi.mock('../server/config/db.js',()=>({db:()=>({execute:mockExecute})}));
 process.env.SESSION_SECRET='h8-test-session-secret-at-least-32-characters';
 const{createApp}=await import('../server/app.js');
 let app,root;
@@ -26,3 +27,4 @@ describe('H8 organization settings',()=>{
   it('accepts blank optional social URLs and returns updated settings publicly',async()=>{const cookie=await login(),updated={...organization,facebook_url:'',instagram_url:'',youtube_url:'',linkedin_url:'',threads_url:'',x_url:'',website_url:''};allow();execute.mockResolvedValueOnce([{}]);expect((await request(app).put('/api/admin/organization').set('Cookie',cookie).send(updated)).status).toBe(200);execute.mockResolvedValueOnce([[updated]]);expect((await request(app).get('/api/organization')).body).toEqual(updated)});
   it('leaves existing public APIs unaffected',async()=>{execute.mockResolvedValueOnce([[{id:1,title:'Existing gallery item'}]]);expect((await request(app).get('/api/gallery')).body).toEqual([{id:1,title:'Existing gallery item'}])});
 });
+

@@ -1,1 +1,3 @@
-import fs from'node:fs';const source=fs.existsSync('.env.local')?'.env.local':'.env',text=fs.existsSync(source)?fs.readFileSync(source,'utf8'):'';for(const[group,list]of [['PUBLIC',['VITE_API_BASE_URL','VITE_RAZORPAY_KEY_ID']],['SERVER',['APP_ORIGIN','DB_HOST','DB_PORT','DB_NAME','DB_USER','DB_PASSWORD','SESSION_SECRET','RAZORPAY_KEY_ID','RAZORPAY_KEY_SECRET','RAZORPAY_WEBHOOK_SECRET']]]){console.log(group);for(const key of list)console.log(`  ${key}: ${new RegExp(`^${key}=.+`,'m').test(text)?'set':'missing'}`)}console.log('Never put server secrets in VITE_* variables.');
+import {validateEnvironment} from '../server/config/validate-env.js';
+validateEnvironment(process.env);
+console.log('Server environment validation passed. Payment and mail providers remain disabled.');

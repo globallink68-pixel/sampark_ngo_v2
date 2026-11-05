@@ -1,0 +1,14 @@
+import fs from 'node:fs/promises';
+import path from 'node:path';
+const target=path.resolve('.qa/release-final');
+await fs.mkdir(target,{recursive:true});
+const excluded=['server/payments.js','src/styles.css','src/lib/checkout.js','src/lib/payment.js','src/lib/rules.js','src/lib/contact-submission.js'];
+for(const entry of ['server','src','public','database','index.html'])await fs.cp(entry,path.join(target,entry),{recursive:true,force:true,filter:source=>!excluded.includes(path.relative(process.cwd(),source).replaceAll('\\','/'))});
+const pkg=JSON.parse(await fs.readFile('package.json','utf8'));
+delete pkg.devDependencies;
+pkg.engines={node:'>=22.23.4 <25'};
+pkg.scripts={build:'vite build',start:'node server/server.js',migrate:'node server/scripts/migrate.js','create-admin':'node server/scripts/create-admin.js'};
+await fs.writeFile(path.join(target,'package.json'),JSON.stringify(pkg,null,2));
+const lock=JSON.parse(await fs.readFile('package-lock.json','utf8'));delete lock.packages[''].devDependencies;lock.packages[''].engines=pkg.engines;
+await fs.writeFile(path.join(target,'package-lock.json'),JSON.stringify(lock,null,2));
+console.log('Prepared source-only candidate without test tooling, secrets, databases or QA artifacts.');

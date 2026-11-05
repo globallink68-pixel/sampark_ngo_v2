@@ -1,11 +1,12 @@
+import {sessionDatabase} from './helpers/session-database.js';
 import{afterEach,beforeEach,describe,it,expect,vi}from'vitest';
 import request from'supertest';
 import os from'node:os';
 import fs from'node:fs/promises';
 import path from'node:path';
 
-const execute=vi.fn();
-vi.mock('../server/config/db.js',()=>({db:()=>({execute})}));
+const execute=vi.fn();const mockExecute=sessionDatabase(execute);
+vi.mock('../server/config/db.js',()=>({db:()=>({execute:mockExecute})}));
 const{createApp}=await import('../server/app.js');
 let root,app,distRoot,uploadRoot;
 
@@ -21,3 +22,4 @@ describe('H6 Vite static serving',()=>{
   it('preserves uploads static serving',async()=>{const response=await request(app).get('/uploads/gallery/image.txt');expect(response.status).toBe(200);expect(response.text).toBe('upload fixture')});
   it('returns a safe 404 for frontend routes when the dist directory is absent',async()=>{const missing=createApp({distRoot:path.join(root,'missing-dist'),uploadRoot:path.join(root,'other-uploads')});const response=await request(missing).get('/');expect(response.status).toBe(404);expect(response.text).not.toContain('Vite test app')});
 });
+

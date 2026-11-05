@@ -1,3 +1,4 @@
+import {sessionDatabase} from './helpers/session-database.js';
 import{afterEach,beforeEach,describe,it,expect,vi}from'vitest';
 import request from'supertest';
 import bcrypt from'bcryptjs';
@@ -5,8 +6,8 @@ import os from'node:os';
 import fs from'node:fs/promises';
 import path from'node:path';
 
-const execute=vi.fn();
-vi.mock('../server/config/db.js',()=>({db:()=>({execute})}));
+const execute=vi.fn();const mockExecute=sessionDatabase(execute);
+vi.mock('../server/config/db.js',()=>({db:()=>({execute:mockExecute})}));
 process.env.SESSION_SECRET='test-session-secret-at-least-32-characters';
 const{createApp}=await import('../server/app.js');
 let app,root;
@@ -21,3 +22,4 @@ describe('H1 final same-origin admin protection',()=>{
   it('rejects a malformed origin',async()=>{const cookie=await login();execute.mockResolvedValueOnce([[{id:1}]]);expect((await request(app).delete('/api/admin/gallery/1').set('Cookie',cookie).set('Origin','not an origin')).status).toBe(403)});
   it('does not require an origin for normal admin GET requests',async()=>{const cookie=await login();execute.mockResolvedValueOnce([[{id:1}]]).mockResolvedValueOnce([[]]);expect((await request(app).get('/api/admin/donations').set('Cookie',cookie)).status).toBe(200)});
 });
+

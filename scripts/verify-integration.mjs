@@ -1,0 +1,53 @@
+import mysql from 'mysql2/promise';
+import bcrypt from 'bcryptjs';
+import request from 'supertest';
+import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import sharp from 'sharp';
+import {runMigrations} from '../server/migrations.js';
+const database=`sampark_verify_${Date.now()}`;
+const config={host:'127.0.0.1',port:33379,user:'root',password:'synthetic-local-only'};
+const c=await mysql.createConnection(config);await c.query(`CREATE DATABASE \`${database}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`);await c.changeUser({database});
+Object.assign(process.env,{NODE_ENV:'test',DB_HOST:'127.0.0.1',DB_PORT:'33379',DB_NAME:database,DB_USER:'root',DB_PASSWORD:config.password,SESSION_SECRET:'synthetic-verification-secret-at-least-32-chars',APP_ORIGIN:'http://127.0.0.1:3017'});
+const results=[];const check=async(name,fn)=>{try{await fn();results.push({name,status:'PASS'})}catch(e){results.push({name,status:'FAIL',error:e.message});throw e}};
+await fs.mkdir('.qa',{recursive:true});
+let pool;
+try{
+ await check('fresh MariaDB migration',()=>runMigrations(c));
+ await check('repeat migration idempotency',()=>runMigrations(c));
+ await c.execute('INSERT INTO admins(email,password_hash) VALUES (?,?)',['admin@example.test',await bcrypt.hash('Synthetic-only-passphrase-2026',10)]);
+ const {createApp}=await import('../server/app.js');const {db}=await import('../server/config/db.js');pool=db();
+ const uploadRoot=path.resolve('.qa/uploads');const app=createApp({uploadRoot,trustedOrigin:process.env.APP_ORIGIN});
+ const agent=request.agent(app);const origin=process.env.APP_ORIGIN;
+ await check('admin unauthorised',async()=>assert.equal((await agent.get('/api/admin/donations')).status,401));
+ await check('admin login',async()=>assert.equal((await agent.post('/api/auth/login').send({email:'admin@example.test',password:'Synthetic-only-passphrase-2026'})).status,200));
+ const mutation=(method,url)=>agent[method](url).set('Origin',origin);
+ const png=await sharp({create:{width:40,height:30,channels:3,background:'#0a6664'}}).png().toBuffer();let programme,gallery;
+ await check('programme create with decoded image',async()=>{const r=await mutation('post','/api/admin/programs').field('title','Synthetic training programme').field('status','upcoming').field('description','Synthetic QA content; not a claim of current course operation.').attach('image',png,{filename:'qa.png',contentType:'image/png'});assert.equal(r.status,201);programme=r.body.id});
+ await check('published programme details',async()=>{const r=await agent.get(`/api/programs/${programme}`);assert.equal(r.status,200);assert.match(r.body.title,/Synthetic/)});
+ await check('gallery upload',async()=>{const r=await mutation('post','/api/admin/gallery').field('title','Synthetic QA image').field('display_order','0').field('active','1').attach('image',png,{filename:'qa.png',contentType:'image/png'});assert.equal(r.status,201);gallery=r.body.id});
+ await check('reject forged JPEG content',async()=>{const r=await mutation('post','/api/admin/gallery').field('title','Rejected').attach('image',Buffer.from('<script>alert(1)</script>'),{filename:'forged.jpg',contentType:'image/jpeg'});assert.equal(r.status,400)});
+ await check('CSRF rejection',async()=>assert.equal((await agent.put(`/api/admin/programs/${programme}`).set('Origin','https://attacker.example').send({title:'Bad'})).status,403));
+ await check('contact validation and storage',async()=>{assert.equal((await agent.post('/api/contact').send({name:'QA',email:'qa@example.test',mobile:'9999999999',subject:'Synthetic enquiry',message:'QA only',consent:true})).status,201);const [r]=await c.execute('SELECT COUNT(*) AS count FROM contact_messages');assert.equal(r[0].count,1)});
+ for(const kind of ['volunteer','internship','membership','csr','pickup'])await check(`${kind} application`,async()=>{const r=await agent.post(`/api/applications/${kind}`).send({name:'Synthetic QA',email:'qa@example.test',message:'QA only',consent:true});assert.equal(r.status,201)});
+ await check('application rate limit',async()=>assert.equal((await agent.post('/api/applications/sponsor').send({name:'QA',email:'qa@example.test',message:'QA',consent:true})).status,429));
+ await check('sponsor application',async()=>assert.equal((await request(createApp({uploadRoot})).post('/api/applications/sponsor').send({name:'QA',email:'qa@example.test',message:'QA',consent:true})).status,201));
+ await check('application privacy',async()=>assert.equal((await agent.get('/api/applications')).status,404));
+ await check('application status and audit transaction',async()=>assert.equal((await mutation('put','/api/admin/applications/1').send({status:'contacted'})).status,200));
+ await check('authorised policy editing and escaped source',async()=>{assert.equal((await mutation('put','/api/admin/content/policy-privacy').send({title:'Privacy policy',kind:'policy',body:'Synthetic approved privacy wording. <script>must remain text</script>',published:true})).status,200);const r=await agent.get('/api/content/policy-privacy');assert.match(r.body.body,/Synthetic approved/)});
+ await check('audit records persisted',async()=>assert.equal((await agent.get('/api/admin/audit')).body.length,2));
+ await check('financial history immutable under retired endpoints',async()=>{await c.execute("INSERT INTO donations(donor_name,donor_email,amount,status,razorpay_order_id,razorpay_payment_id) VALUES ('Synthetic donor','qa@example.test',12345,'paid','synthetic-order','synthetic-payment')");const [before]=await c.execute('SELECT * FROM donations');for(const url of ['/api/donations/create-order','/api/donations/verify-payment','/api/webhooks/razorpay'])assert.equal((await agent.post(url).send({amount:1})).status,410);const [after]=await c.execute('SELECT * FROM donations');assert.deepEqual(after,before);const summary=await agent.get('/api/admin/donations/summary');assert.equal(Number(summary.body.paid_amount),12345)});
+ await check('foreign key restricts historical enquiry deletion',async()=>{await c.execute("INSERT INTO contact_interactions(contact_message_id,interaction_type,note,interaction_at) VALUES (1,'note','Synthetic interaction',NOW())");await assert.rejects(c.execute('DELETE FROM contact_messages WHERE id=1'),{code:'ER_ROW_IS_REFERENCED_2'})});
+ await check('missing receipts fail closed',async()=>assert.equal((await agent.get('/api/receipts/1')).status,404));
+ await check('application pagination preserves old pending records',async()=>{for(let i=0;i<101;i++)await c.execute("INSERT INTO applications(kind,name,email,message) VALUES ('volunteer','Synthetic pagination','qa@example.test','QA only')");const first=await agent.get('/api/admin/applications?offset=0');const next=await agent.get('/api/admin/applications?offset=100');assert.equal(first.body.length,100);assert.ok(next.body.some(r=>r.id===1));assert.equal((await agent.get('/api/admin/applications?offset=-1')).status,400)});
+ await check('published activity CMS',async()=>assert.equal((await mutation('put','/api/admin/content/synthetic-activity').send({title:'Synthetic activity',kind:'activity',body:'Synthetic QA content only.',published:true})).status,200));
+ await check('logout revokes a stolen session cookie',async()=>{const login=await agent.post('/api/auth/login').send({email:'admin@example.test',password:'Synthetic-only-passphrase-2026'});const cookie=login.headers['set-cookie'][0];assert.equal((await mutation('post','/api/auth/logout')).status,204);assert.equal((await request(app).get('/api/admin/donations').set('Cookie',cookie)).status,401)});
+ await fs.writeFile('.qa/runtime.json',JSON.stringify({database,uploadRoot,programme,gallery},null,2));
+}finally{
+ await fs.writeFile('.qa/integration.json',JSON.stringify({engine:'MariaDB 11.8.9',database,results,passed:results.filter(r=>r.status==='PASS').length,failed:results.filter(r=>r.status==='FAIL').length},null,2));await c.end();if(pool)await pool.end();
+}
+console.log(JSON.stringify({passed:results.length,database}));
+
+
+
