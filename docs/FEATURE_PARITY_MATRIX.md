@@ -22,7 +22,7 @@ Status describes this local implementation, not Flask's earlier test results. Tw
 | Image and private-data boundaries | PASS | Raster decode/re-encode, pixel/size limits, random names; applications in private database, no file attachments |
 | Complete SEO/error-status parity | BLOCKED | Basic title/description/robots/sitemap retained; per-route metadata and SPA soft-404 behavior not equivalent to Flask |
 | Synthetic MariaDB integrity | PASS | Fresh and repeated migrations, restrictive FK, transaction and financial integrity checks |
-| Existing database migration adoption | BLOCKED | Missing production ledger/provenance; runner refuses automatic adoption |
+| Existing database migration adoption | BLOCKED | Local reviewed-schema strategy passes 17 rehearsal checks and 10 focused tests; production ledger remains untouched, historical execution unknown and actual adoption/reconciliation unapproved |
 | Flask mail-outbox/retry parity | BLOCKED | No Node source implementation or delivery configuration; email remains disabled |
 
 No unsupported feature is silently represented as complete. Structured Flask application fields/private attachments, legacy audit completeness, SEO and mail-outbox work remain implementation limitations in addition to the evidence-dependent historical/member blockers. This is a partial upgrade and a synthetic-staging review package, not final production acceptance.

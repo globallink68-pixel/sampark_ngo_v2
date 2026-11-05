@@ -1,0 +1,14 @@
+import {it,expect} from 'vitest';
+import fs from 'node:fs/promises';
+import {baselineFingerprint,reviewBaseline,adoptSyntheticBaseline} from '../scripts/lib/baseline-adoption.mjs';
+const snapshot=JSON.parse(await fs.readFile(new URL('./fixtures/observed-baseline-schema.json',import.meta.url),'utf8'));
+const schema=snapshot.schema;
+const review={reference:'local-rehearsal-review-20261105',schema_sha256:baselineFingerprint(schema),accepted_differences:['organization_settings.column_order'],history:'unknown; adopting observed schema, not claiming historical execution'};
+it('requires explicit review rather than inferring migration history',()=>{expect(()=>reviewBaseline(schema,{...review,reference:''})).toThrow(/review/i)});
+it('rejects financial column drift',()=>{const changed=schema.map(t=>t.name==='donations'?{...t,ddl:t.ddl.replace('`amount` int(11)','`amount` bigint(20)')}:t);expect(()=>reviewBaseline(changed,review)).toThrow(/fingerprint/i)});
+it('rejects missing unique payment constraints',()=>{const changed=schema.map(t=>t.name==='donations'?{...t,ddl:t.ddl.replace('UNIQUE KEY `razorpay_payment_id`','KEY `razorpay_payment_id`')}:t);expect(()=>reviewBaseline(changed,review)).toThrow(/fingerprint/i)});
+it('ignores only volatile auto-increment counters',()=>{const changed=schema.map(t=>({...t,ddl:t.ddl.replace(/AUTO_INCREMENT=\d+/g,'AUTO_INCREMENT=9999')}));expect(baselineFingerprint(changed)).toBe(review.schema_sha256)});
+it('records adoption without asserting migrations executed',()=>{const plan=reviewBaseline(schema,review);expect(plan.historical_execution_proven).toBe(false);expect(plan.review_reference).toBe(review.reference)});
+it('refuses adoption outside the fixed isolated loopback fixture',async()=>{await expect(adoptSyntheticBaseline({config:{host:'db.example',port:3306}},review)).rejects.toThrow(/isolated/i)});
+it('rejects socket paths that override a seemingly isolated TCP configuration',async()=>{await expect(adoptSyntheticBaseline({config:{host:'127.0.0.1',port:33379,socketPath:'/synthetic/socket'}},review)).rejects.toThrow(/isolated/i)});
+it('rejects custom streams that override the isolated TCP endpoint',async()=>{await expect(adoptSyntheticBaseline({config:{host:'127.0.0.1',port:33379,stream:()=>{}}},review)).rejects.toThrow(/isolated/i)});

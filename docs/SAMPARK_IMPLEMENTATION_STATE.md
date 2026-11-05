@@ -11,3 +11,13 @@ Working source was isolated under the original workspace's .qa/node-development 
 Synthetic MariaDB 11.8.9 was initialized under .qa/node-mariadb on loopback port 33379 without changing the existing Windows database services. Synthetic application databases, credentials and browser submissions are excluded from the release. No production .env, uploads, private legal documents or database export was retrieved.
 
 Hostinger's source-ZIP managed Node workflow is documented, preserving server/server.js. The archive is suitable for isolated synthetic staging review only. Existing production migration provenance, historical mappings and hosted acceptance remain blocked. Required functional differences are explicitly listed; this report does not declare the master implementation task complete.
+
+## Direct cutover / baseline-adoption continuation
+
+The requested future target is now the existing production domain, without requiring a public staging subdomain. Production remains unchanged and NOT READY.
+
+Read-only metadata access is verified. The earlier helper's error 1045 came from missing SSH DB_* injection and an absent .env; existing server-side application configuration authenticated successfully without exporting values. Nine observed baseline table definition/key sets, engines and collations match the local reference; organisation social-column order differs harmlessly. No ledger or historical execution provenance is inferred.
+
+Local adoption proof added 17 passing real MariaDB rehearsal checks and 10 passing focused unit checks. The fixture uses observed schema metadata and synthetic records/media only. Original values, keys, identifiers, financial references, timestamps and counters survive; idempotency, drift/checksum refusal and interruption safety pass. A reviewed schema is labelled adopted_schema with applied_at NULL, not fabricated execution history. The helper cannot target production; normal migration refusal logic remains unchanged.
+
+Reports: DATABASE_MIGRATION_PLAN.md, BASELINE_ADOPTION_REHEARSAL.md and PRODUCTION_CUTOVER_PLAN.md. The prior full-suite/browser evidence and release ZIP/checksum are unchanged; no completed full tests or audits were repeated. Production adoption/reconciliation, independent source mappings and hosted recovery/persistence gates remain BLOCKED.
