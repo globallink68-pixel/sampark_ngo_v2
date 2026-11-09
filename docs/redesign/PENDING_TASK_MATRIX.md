@@ -1,22 +1,21 @@
-# Remaining delivery matrix
+# Delivery matrix
 
-| Requirement | Current implementation and status | Remaining files or dependencies | Validation |
-| --- | --- | --- | --- |
-| Branding | PARTIAL. Logo and favicon have authenticated drafts and audited publication. | src/public.jsx, src/site-image-settings.jsx. Editable tagline, footer branding and other brand settings. | Logo and favicon publication passed in Chrome. |
-| Homepage | PARTIAL. Hero image and text publishing exist. | src/public.jsx and existing content editor. Structured section settings, CTAs, order and visibility. | Hero image publication passed in Chrome. |
-| NGO details | PARTIAL. Organisation settings and text slots exist. | Organisation editor, public About page and draft API. Full staged organisation record. | Combined workflow NOT TESTED. |
-| Members | PARTIAL. Existing editor supports public member records and photo uploads. | Member CRUD and public profiles. Add draft revisions, private media, category and explicit public visibility. | Browser publication NOT TESTED. |
-| Programmes | PARTIAL. Existing CRUD, image and detail route. | Programme editor and API. Add category and staged publication. | New workflow NOT TESTED. |
-| Gallery | PARTIAL. Existing image editor, gallery and lightbox. | Gallery editor and API. Add albums, multi-upload and private revisions. | New workflow NOT TESTED. |
-| Certificates | MISSING. Transparency page exists. | Verified and redacted source documents, safe document storage and editor. | Publication NOT TESTED. |
-| Donations | PARTIAL. Manual donation page exists. | Dedicated verified draft fields, approved QR and explicit publication. | New workflow NOT TESTED. |
-| Website settings | PARTIAL. Organisation contact and social links plus text editor. | Navigation, footer, FAQ and metadata settings and rendering. | New workflow NOT TESTED. |
-| Image publication | COMPLETE for logo, favicon and hero. | server/site-images.js and migration 009. Extend private workflows to record images in later modules. | MariaDB integration and Chrome passed. |
-| Public redesign and motion | PARTIAL. Homepage and shared header consume published branding. | Public route components and design styles. Full visual refresh, motion and route testing. | Homepage overflow passed at five widths. |
-| Reference visual comparison | BLOCKED. Prior DFLWF browser navigation returned HTTP 403. | Authorized reference captures or normal browser access. | No similarity score or visual parity result. |
-| Full CMS acceptance | NOT TESTED. Branding and hero were exercised in isolation. | Member draft workflow and combined browser fixture. | Verify all four requested updates plus audit and persistence. |
-| Hostinger release | PARTIAL. React build succeeds and migration runs locally. | Final integrated package, checksums, smoke tests and rollback documentation. | Production deployment was not performed. |
+| Requirement | Status | Implementation and evidence |
+| --- | --- | --- |
+| Branding | COMPLETE | Private logo, favicon and hero drafts, published header and footer logo, organisation name and tagline. Chrome publishing workflow passed. |
+| Homepage | COMPLETE for configured fields | Hero image and text, primary CTA, optional impact and testimonials, FAQ, section ordering and visibility. Validated configuration uses the content draft editor. |
+| NGO details | PARTIAL | Existing organisation editor manages contact, address and social fields. About, mission, vision and history use draft publishing. Organisation record as a whole still uses its existing immediate-save workflow. |
+| Members | COMPLETE | Staged creation and edits with category, active flag, public visibility, ordering and private photo. MariaDB and combined Chrome workflow passed. |
+| Programmes | COMPLETE | Staged records, dates, category, visibility and private media. MariaDB confirmed publication and preservation of existing image URLs. |
+| Gallery | PARTIAL | Staged image, caption, album, order, visibility and public album filter. MariaDB and gallery keyboard checks passed. Batch upload remains outstanding. |
+| Certificates | COMPLETE for image records | Verified, redacted image previews and revocable public endpoints. MariaDB checks passed. Live source copies still require academy approval. |
+| Donations | COMPLETE for manual methods | Verified bank and UPI details, QR publication and withdrawal. No gateway. MariaDB checks passed. Live details require academy approval. |
+| Website settings | PARTIAL | Validated JSON settings publish navigation, footer, FAQ and browser metadata. Existing editor covers contact and socials. Metadata overrides are browser-side. |
+| Record migrations | COMPLETE | Migrations 010 and 011 and the upgrade rehearsal passed with 17 checks. Existing IDs, data and legacy schema definitions preserved. |
+| Public refresh | PARTIAL | Shared styling, route entry and hover motion, reduced-motion behavior, album filter and dynamic content. Existing route layouts retained. |
+| Reference comparison | BLOCKED | DFLWF rendered access remains unavailable from prior HTTP 403 checks. No exact visual parity claim. |
+| Combined CMS acceptance | COMPLETE for exercised workflow | Chrome verified logo, hero, member and description from private drafts to public reload without rebuild. Stale revision and protected-image checks also passed through the MariaDB integration suite. |
+| Responsive verification | COMPLETE for exercised routes | 145 checks across 29 routes and 5 widths. Mobile navigation Escape, gallery dismissal, FAQ and reduced motion passed. |
+| Hostinger | LOCAL CANDIDATE | Production build, source, migration and rollback documentation, manifest and checksum. Actual hPanel staging and cutover remain unverified. |
 
-Migration 009 adds two tables. Images are validated and normalized to WebP before being stored. Current and historical published bytes have immutable URLs. Draft bytes are available only through authenticated, slot-bound previews. Replacing a draft removes only the previous unpublished blob, in the same transaction. Published history is retained to avoid breaking older references. Database backups include the image tables. Rolling back application code can leave these additive tables in place for later recovery.
-
-The next implementation step is member draft revisions with protected photographs and explicit publication. Existing member records and image URLs require compatibility coverage.
+See FINAL_ACCEPTANCE_REPORT.md for exact evidence and limitations.
