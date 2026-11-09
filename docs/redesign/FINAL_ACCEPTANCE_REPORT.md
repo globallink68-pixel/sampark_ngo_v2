@@ -22,8 +22,29 @@
 | React build and ESLint | Passed |
 | Hostinger production | No deployment or database mutation. Actual hPanel and production migration approval remain outside local verification. |
 
+## Final completion pass
+
+- Added bulk gallery draft upload with per-file preview, album, title, caption, order, status and retry keys.
+- Added staged organisation settings with authenticated preview, revision matching, audit logging and transactional publication. The legacy API remains compatible.
+- Added featured programmes and programme descriptions to published homepage settings, accessible route breadcrumbs, dedicated programme and policy layouts, and mobile menu entrance.
+- Express now uses published settings for initial HTML metadata. Canonical URLs and robots rules are still controlled by the application. Optional sharing image paths are restricted to same-site static images.
+
+| Current verification | Result |
+| --- | --- |
+| Final automated regression | 200 passed across 31 files |
+| Isolated MariaDB integration | 36 passed, including organisation draft staleness and gallery retry idempotency |
+| Browser acceptance extension | Organisation draft and publication, gallery batch partial failure and publication, homepage settings, FAQ, footer and server HTML metadata passed |
+| Current responsive matrix | 145 checks passed across 29 routes at 1440, 1280, 768, 390 and 360px. 55 screenshots captured. |
+| Local mobile warm navigation sample | DOMContentLoaded 60 ms, load 63 ms. This is a loopback sample, with no hosted latency measurement. |
+| ESLint and production build | Passed |
+| Schema | No migrations added or changed in this pass. Prior 17-check upgrade rehearsal retained as baseline evidence. |
+| Actual Hostinger staging | BLOCKED pending authorized isolated application access and database |
+| Production | No deployment or database mutation |
+
 ## Limits
 
-The design is an incremental restyling of the existing route layouts. Exact reference spacing, page compositions and interaction timing are unverified. The settings editor uses validated JSON. Metadata overrides are applied in the browser. Gallery uploads are staged one image at a time. Certificate publication supports reviewed JPEG, PNG and WebP images. Previously public legacy member images can remain available by direct URL after the corresponding profile is hidden. Live donation details, certificate copies, impact figures and testimonials require the academy's verified source material.
+The redesign uses the documented reference structure and retains applicable existing Sampark layouts. Exact DFLWF visual and animation parity remains unverified after the prior HTTP 403. The settings editor uses validated JSON. Mission, vision and history are managed in site settings, while contact and organisation identity use the organisation draft editor. Certificate publication supports reviewed JPEG, PNG and WebP images. Live certificate copies, payment details, impact figures and testimonials require academy-approved source material.
 
-See HOSTINGER_DEPLOYMENT.md for staging, migrations and smoke tests. See ROLLBACK_PLAN.md for rollback and visibility compatibility. The archive includes a file manifest and has a separate SHA-256 checksum.
+Browser and integration evidence use synthetic records only. Member, programme, certificate and donation scenarios verified in the previous implementation retain their prior evidence. The new browser pass targets changed workflows and public route rendering. Automated accessibility coverage covers selected behaviors and does not constitute a full conformance audit.
+
+The regenerated archive and separate SHA-256 and manifest are delivered in the final-redesign outputs directory. See HOSTINGER_DEPLOYMENT.md for setup, migrations and smoke tests, and ROLLBACK_PLAN.md for rollback and visibility compatibility.

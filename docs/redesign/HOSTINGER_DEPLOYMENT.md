@@ -20,3 +20,11 @@ Use an isolated managed Node.js staging application before any production cutove
 - Restart the staging app and verify prior media URLs and published revisions persist.
 
 No live hPanel deployment was performed for this candidate.
+
+## Managed Hostinger preflight
+
+Hostinger documents Express ZIP deployment and Node 24 support for eligible Business and Cloud plans. See [Hostinger's Node.js deployment guide](https://www.hostinger.com/support/how-to-deploy-a-nodejs-website-in-hostinger/). Account plan eligibility, a free staging slot, and an isolated staging database must be confirmed in hPanel.
+
+Use hostinger-env.example.txt as a list of variable names. Configure values in hPanel. Keep SESSION_SECRET unique to staging and at least 32 characters. Verify UPLOAD_ROOT is absolute and writable by the application process. Back up the database and upload root separately, then rehearse a restoration before production approval.
+
+The current changes reuse the existing migration schema. Run the normal checksum-gated migration command on the isolated staging database. Staging deployment is blocked until an authorized isolated Hostinger application and MariaDB target are available.

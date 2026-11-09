@@ -5,7 +5,7 @@ $root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $output = (New-Item -ItemType Directory -Force -Path $OutputDirectory).FullName
 $stage = (New-Item -ItemType Directory -Path (Join-Path $root ('.qa/redesign-release-' + [Guid]::NewGuid()))).FullName
 $files = @('server','src','public','database','dist','index.html','package.json','package-lock.json')
-$docs = @('HOSTINGER_DEPLOYMENT.md','ROLLBACK_PLAN.md','FINAL_ACCEPTANCE_REPORT.md')
+$docs = @('HOSTINGER_DEPLOYMENT.md','ROLLBACK_PLAN.md','FINAL_ACCEPTANCE_REPORT.md','hostinger-env.example.txt')
 $zip = Join-Path $output 'sampark-academy-hostinger-candidate.zip'
 if (Test-Path -LiteralPath $zip) { throw 'Candidate archive already exists.' }
 foreach ($entry in $files) {
