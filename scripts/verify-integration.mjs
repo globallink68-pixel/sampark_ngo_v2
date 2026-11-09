@@ -37,6 +37,21 @@ try{
  await check('application status and audit transaction',async()=>assert.equal((await mutation('put','/api/admin/applications/1').send({status:'contacted'})).status,200));
  await check('authorised policy editing and escaped source',async()=>{assert.equal((await mutation('put','/api/admin/content/policy-privacy').send({title:'Privacy policy',kind:'policy',body:'Synthetic approved privacy wording. <script>must remain text</script>',published:true})).status,200);const r=await agent.get('/api/content/policy-privacy');assert.match(r.body.body,/Synthetic approved/)});
  await check('audit records persisted',async()=>assert.equal((await agent.get('/api/admin/audit')).body.length,2));
+ await check('private draft replaces public policy only after audited publish',async()=>{
+  const route='/api/admin/content/policy-privacy/draft';
+  const draft={title:'Revised policy',kind:'policy',body:'Synthetic draft wording.'};
+  assert.equal((await mutation('put',route).send(draft)).status,204);
+  assert.equal((await request(app).get(route)).status,401);
+  assert.notEqual((await agent.get('/api/content/policy-privacy')).body.body,draft.body);
+  assert.deepEqual((await agent.get(route)).body,draft);
+  assert.equal((await mutation('post',route+'/publish').send(draft)).status,204);
+  assert.equal((await agent.get('/api/content/policy-privacy')).body.body,draft.body);
+  const [[stored]]=await c.execute('SELECT title,kind,body FROM content_pages WHERE slug=?',['policy-privacy']);
+  assert.deepEqual({...stored},draft);
+  assert.equal((await agent.get(route)).status,404);
+  const [audit]=await c.execute('SELECT action FROM audit_events WHERE resource=? ORDER BY id DESC LIMIT 2',['policy-privacy']);
+  assert.deepEqual(audit.map(row=>row.action),['content.publish','content.draft']);
+ });
  await check('financial history immutable under retired endpoints',async()=>{await c.execute("INSERT INTO donations(donor_name,donor_email,amount,status,razorpay_order_id,razorpay_payment_id) VALUES ('Synthetic donor','qa@example.test',12345,'paid','synthetic-order','synthetic-payment')");const [before]=await c.execute('SELECT * FROM donations');for(const url of ['/api/donations/create-order','/api/donations/verify-payment','/api/webhooks/razorpay'])assert.equal((await agent.post(url).send({amount:1})).status,410);const [after]=await c.execute('SELECT * FROM donations');assert.deepEqual(after,before);const summary=await agent.get('/api/admin/donations/summary');assert.equal(Number(summary.body.paid_amount),12345)});
  await check('foreign key restricts historical enquiry deletion',async()=>{await c.execute("INSERT INTO contact_interactions(contact_message_id,interaction_type,note,interaction_at) VALUES (1,'note','Synthetic interaction',NOW())");await assert.rejects(c.execute('DELETE FROM contact_messages WHERE id=1'),{code:'ER_ROW_IS_REFERENCED_2'})});
  await check('missing receipts fail closed',async()=>assert.equal((await agent.get('/api/receipts/1')).status,404));
