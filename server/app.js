@@ -1,3 +1,4 @@
+import {organizationDraft} from './organization-draft.js';
 import express from'express';
 import {workflows} from './workflows.js';
 import {sanitizeImage} from './images.js';
@@ -153,6 +154,7 @@ export function createApp(options={}){
   app.post('/api/admin/contact-messages/:id/interactions',admin,sameOrigin,async(request,response)=>{const type=String(request.body.interaction_type||''),note=plain(request.body.note),at=String(request.body.interaction_at||'');if(!['phone','email','whatsapp','meeting','note','other'].includes(type)||!note||note.length>5000||!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(at))return response.sendStatus(400);const[result]=await db().execute('insert into contact_interactions(contact_message_id,interaction_type,note,interaction_at) values(?,?,?,?)',[request.params.id,type,note,at]);await db().execute('update contact_messages set last_contacted_at=?,updated_at=updated_at where id=?',[at,request.params.id]);return response.status(201).json({id:result.insertId})});
   app.get('/api/admin/donations',admin,async(request,response)=>{const filters=donationFilters(request.query);if(!filters)return response.sendStatus(400);return response.json((await db().execute(`select id,donor_name,donor_email,donor_mobile,amount,currency,status,razorpay_order_id,razorpay_payment_id,created_at from donations${filters.where} order by created_at desc,id desc`,filters.params))[0])});
   app.get('/api/admin/donations/summary',admin,async(request,response)=>{const filters=donationFilters(request.query);if(!filters)return response.sendStatus(400);const[rows]=await db().execute(`select coalesce(sum(case when status='paid' then amount else 0 end),0) as paid_amount,coalesce(sum(status='paid'),0) as paid_count,coalesce(sum(status='created'),0) as created_count,coalesce(sum(status='failed'),0) as failed_count from donations${filters.where}`,filters.params);return response.json(rows[0]||{paid_amount:0,paid_count:0,created_count:0,failed_count:0})});
+  organizationDraft(app,{db,admin,sameOrigin,columns:organizationColumns,validate:organizationInput});
   workflows(app,sameOrigin);
   app.get('/api/page-metadata',async(request,response)=>{
     const route=request.query.path;

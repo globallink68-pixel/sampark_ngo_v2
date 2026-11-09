@@ -126,7 +126,9 @@ export function recordDrafts(app,db,admin,sameOrigin){
    try{image=await sanitizeImage(req.file.buffer)}catch{return res.sendStatus(400)}
    if(image.length>1024*1024)return res.sendStatus(413);
   }
-  const key=id??randomUUID(),revision=randomUUID(),payload=JSON.stringify(record);
+  const retryKey=req.query.upload_key;
+  if(retryKey!==undefined&&(kind!=='gallery'||id||target||typeof retryKey!=='string'||!uuid.test(retryKey)))return res.sendStatus(400);
+  const key=id??retryKey??randomUUID(),revision=randomUUID(),payload=JSON.stringify(record);
   const status=await transaction(db,async connection=>{
    if(id){
     const [result]=await connection.execute('UPDATE record_drafts SET revision=?,payload=?,image=COALESCE(?,image) WHERE id=? AND collection=? AND revision=?',[revision,payload,image,id,kind,typeof req.query.revision==='string'?req.query.revision:'']);
@@ -134,11 +136,19 @@ export function recordDrafts(app,db,admin,sameOrigin){
    }else{
     const live=target?await readRecord(connection,spec,target):null;
     if(target&&!live)return 404;
-    await connection.execute('INSERT INTO record_drafts(id,collection,target_id,baseline,revision,payload,image) VALUES (?,?,?,?,?,?,?)',[key,kind,target??null,live?fingerprint(live):null,revision,payload,image]);
+    const [insert]=await connection.execute('INSERT INTO record_drafts(id,collection,target_id,baseline,revision,payload,image) VALUES (?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE id=id',[key,kind,target??null,live?fingerprint(live):null,revision,payload,image]);
+    if(!insert.affectedRows||retryKey){
+     const [[existing]]=await connection.execute('SELECT collection,revision,payload,image FROM record_drafts WHERE id=? FOR UPDATE',[key]);
+     if(existing.revision!==revision){
+      if(existing.collection!==kind||existing.payload!==payload||!image||!existing.image?.equals(image))return 409;
+      return {id:key,revision:existing.revision};
+     }
+    }
    }
    await audit(connection,req.admin,'record.draft',kind+'/'+key);
    return id?200:201;
   });
+  if(typeof status==='object')return res.json(status);
   return status<300?res.status(status).json({id:key,revision}):res.sendStatus(status);
  }
  app.post(route,admin,sameOrigin,collection,upload,save);

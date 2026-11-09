@@ -164,6 +164,34 @@ try{
   assert.equal((await mutation('post',route+'/publish').send(payload)).status,204);
   assert.equal((await request(app).get('/api/content/site-settings')).body.body,payload.body);
  });
+ await check('organization drafts publish atomically and reject stale previews',async()=>{
+  const route='/api/admin/organization/draft';
+  const profile={organization_name:'Synthetic profile',primary_email:'ngo@example.test',primary_phone:'9999999999',tagline:'Synthetic tagline'};
+  const visitor=request(app);
+  const before=(await visitor.get('/api/organization')).body;
+  const draft=await mutation('put',route).send({profile});
+  assert.equal(draft.status,200);
+  assert.equal((await visitor.get(route)).status,401);
+  assert.deepEqual((await visitor.get('/api/organization')).body,before);
+  const edited=await mutation('put',route).send({revision:draft.body.revision,profile:{...profile,tagline:'Updated synthetic tagline'}});
+  assert.equal(edited.status,200);
+  assert.equal((await mutation('post',route+'/publish').send({revision:draft.body.revision})).status,409);
+  assert.equal((await mutation('post',route+'/publish').send({revision:edited.body.revision})).status,200);
+  assert.equal((await visitor.get('/api/organization')).body.tagline,'Updated synthetic tagline');
+  assert.equal((await agent.get(route)).status,404);
+ });
+ await check('gallery batch request can retry the same file without duplicate drafts',async()=>{
+  const route='/api/admin/record-drafts/gallery?upload_key=3eef786b-b4b5-4520-b92f-9768230aaef3';
+  const save=title=>mutation('post',route).field('record',JSON.stringify({title,album:'Synthetic album',display_order:0,active:true,public_visible:false})).attach('image',png,{filename:'qa.png',contentType:'image/png'});
+  const first=await save('Synthetic batch image');
+  const retry=await save('Synthetic batch image');
+  assert.equal(first.status,201);
+  assert.equal(retry.status,200);
+  assert.deepEqual(retry.body,first.body);
+  assert.equal((await save('Different payload')).status,409);
+  const [[row]]=await c.execute('SELECT COUNT(*) AS count FROM record_drafts WHERE id=?',[first.body.id]);
+  assert.equal(row.count,1);
+ });
  await check('financial history immutable under retired endpoints',async()=>{await c.execute("INSERT INTO donations(donor_name,donor_email,amount,status,razorpay_order_id,razorpay_payment_id) VALUES ('Synthetic donor','qa@example.test',12345,'paid','synthetic-order','synthetic-payment')");const [before]=await c.execute('SELECT * FROM donations');for(const url of ['/api/donations/create-order','/api/donations/verify-payment','/api/webhooks/razorpay'])assert.equal((await agent.post(url).send({amount:1})).status,410);const [after]=await c.execute('SELECT * FROM donations');assert.deepEqual(after,before);const summary=await agent.get('/api/admin/donations/summary');assert.equal(Number(summary.body.paid_amount),12345)});
  await check('foreign key restricts historical enquiry deletion',async()=>{await c.execute("INSERT INTO contact_interactions(contact_message_id,interaction_type,note,interaction_at) VALUES (1,'note','Synthetic interaction',NOW())");await assert.rejects(c.execute('DELETE FROM contact_messages WHERE id=1'),{code:'ER_ROW_IS_REFERENCED_2'})});
  await check('missing receipts fail closed',async()=>assert.equal((await agent.get('/api/receipts/1')).status,404));

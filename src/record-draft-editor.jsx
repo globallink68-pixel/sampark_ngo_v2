@@ -31,6 +31,68 @@ function Field({field,record}){
  </label>;
 }
 
+function GalleryBatch({onSaved}){
+ const [items,setItems]=useState([]);
+ const [busy,setBusy]=useState(false);
+ const [album,setAlbum]=useState('');
+ const [notice,setNotice]=useState('');
+ const inFlight=useRef(false);
+ const urls=useRef([]);
+ useEffect(()=>()=>urls.current.forEach(url=>URL.revokeObjectURL(url)),[]);
+ function select(event){
+  urls.current.forEach(url=>URL.revokeObjectURL(url));
+  urls.current=[];
+  const files=Array.from(event.target.files);
+  if(files.length>12){setItems([]);setNotice('Select up to 12 images per batch.');return}
+  setNotice('');
+  setItems(files.map((file,index)=>{
+   const valid=['image/jpeg','image/png','image/webp'].includes(file.type)&&file.size>0&&file.size<=5*1024*1024;
+   const preview=valid?URL.createObjectURL(file):null;
+   if(preview)urls.current.push(preview);
+   return {id:crypto.randomUUID(),file,preview,title:file.name.replace(/\.[^.]+$/,'').slice(0,160),description:'',order:index,status:valid?'Ready':'Unsupported image or size'};
+  }));
+ }
+ const update=(id,values)=>setItems(current=>current.map(item=>item.id===id?{...item,...values}:item));
+ async function save(event){
+  event.preventDefault();
+  if(inFlight.current)return;
+  inFlight.current=true;
+  setBusy(true);
+  setNotice('');
+  try{
+   for(const item of items.filter(item=>item.preview&&item.status!=='Draft saved')){
+    const body=new FormData();
+    const record=item.attempt??{title:item.title,description:item.description,album,display_order:item.order,active:true,public_visible:false};
+    body.set('record',JSON.stringify(record));
+    body.set('image',item.file);
+    update(item.id,{status:'Uploading',attempt:record});
+    try{
+     await adminRequest('/api/admin/record-drafts/gallery?upload_key='+item.id,{method:'POST',body});
+     update(item.id,{status:'Draft saved'});
+    }catch(error){update(item.id,{status:'Failed. '+(error.status===400||error.status===413?'Choose a valid image in a new batch.':'Retry failed images.')})}
+   }
+   await onSaved();
+  }catch{setNotice('Draft list could not be refreshed. Reload to see saved drafts.')}
+  finally{inFlight.current=false;setBusy(false)}
+ }
+ return <details><summary>Upload a batch of gallery drafts</summary><form onSubmit={save}>
+  <fieldset disabled={busy}>
+   <label>Gallery images<input type="file" multiple accept="image/jpeg,image/png,image/webp" onChange={select}/></label>
+   <label>Batch album<input value={album} maxLength={80} disabled={items.some(item=>item.attempt)} onChange={event=>setAlbum(event.target.value)}/></label>
+   {items.map(item=><article className="admin-card" key={item.id}>
+    <p>{item.file.name}</p>
+    {item.preview&&<><img src={item.preview} alt="" width="96"/>
+     <label>Title<input required value={item.title} maxLength={160} disabled={!!item.attempt} onChange={event=>update(item.id,{title:event.target.value})}/></label>
+     <label>Caption<textarea maxLength={10000} value={item.description} disabled={!!item.attempt} onChange={event=>update(item.id,{description:event.target.value})}/></label>
+     <label>Order<input type="number" min="-1000000" max="1000000" value={item.order} disabled={!!item.attempt} onChange={event=>update(item.id,{order:Number(event.target.value)})}/></label></>}
+    <p role="status">{item.status}</p>
+   </article>)}
+   <button disabled={!items.some(item=>item.preview&&item.status!=='Draft saved')}>Save or retry gallery drafts</button>
+  </fieldset>
+  {notice&&<p role="status">{notice}</p>}
+ </form></details>;
+}
+
 export function RecordDraftEditor({collection}){
  const spec=specs[collection];
  const route='/api/admin/record-drafts/'+collection;
@@ -104,6 +166,7 @@ export function RecordDraftEditor({collection}){
   <p>Save changes privately, review the saved record, then publish it. Clear public visibility to keep the record off the website.</p>
   <button type="button" disabled={busy||!ready} onClick={()=>edit({})}>New draft</button>
   {status&&<p role="status">{status}</p>}
+  {collection==='gallery'&&<GalleryBatch onSaved={load}/>}
   {selected&&<form key={draft?.revision??selected.row?.id??'new'} onSubmit={save} onChange={()=>setPreview(null)}>
    <fieldset disabled={busy}>
     {spec.fields.map(field=><Field key={field[0]} field={field} record={record}/>)}
