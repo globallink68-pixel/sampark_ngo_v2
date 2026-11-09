@@ -2,10 +2,12 @@ import rateLimit from 'express-rate-limit';
 import {db} from './config/db.js';
 import {admin} from './middleware/auth.js';
 import {contentDrafts} from './content-drafts.js';
+import {siteImages} from './site-images.js';
 const kinds=['volunteer','internship','membership','csr','pickup','sponsor'];
 const text=(value,max)=>typeof value==='string'&&value.trim().length<=max?value.trim():null;
 export function workflows(app,sameOrigin){
  contentDrafts(app,db,admin,sameOrigin);
+ siteImages(app,db,admin,sameOrigin);
  app.get('/api/health',(_r,s)=>s.json({status:'ok',payments:'retired'}));
  app.post('/api/applications/:kind',rateLimit({windowMs:60000,limit:5}),async(r,s)=>{
   const name=text(r.body.name,120),email=text(r.body.email,254),message=text(r.body.message,5000),mobile=text(r.body.mobile??'',30);

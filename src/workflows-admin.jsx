@@ -1,5 +1,6 @@
 import React,{useEffect,useState} from 'react';
 import {adminRequest} from './lib/api';
+import {SiteImageSettings} from './site-image-settings';
 function useRows(url){const [rows,setRows]=useState([]),[error,setError]=useState('');const load=()=>adminRequest(url).then(setRows).catch(()=>setError('Unable to load records.'));useEffect(()=>{load()},[url]);return {rows,error,load,setError};}
 export function AdminApplications(){const [offset,setOffset]=useState(0);const {rows,error,load,setError}=useRows('/api/admin/applications?offset='+offset);async function update(id,status){try{await adminRequest(`/api/admin/applications/${id}`,{method:'PUT',body:{status}});load()}catch{setError('Unable to save application status.')}}return <section className="admin-panel"><h2>Applications</h2><p>Private applicant information. Do not share outside authorised staff.</p><div><button disabled={offset===0} onClick={()=>setOffset(Math.max(0,offset-100))}>Previous page</button><span> Page {offset/100+1} </span><button disabled={rows.length<100} onClick={()=>setOffset(offset+100)}>Next page</button></div>{error&&<p role="alert">{error}</p>}{rows.map(r=><article className="admin-card" key={r.id}><h3>{r.name} · {r.kind}</h3><p>{r.email} · {r.mobile}</p><p className="preserve-lines">{r.message}</p><label>Status<select aria-label={`Status for application ${r.id}`} value={r.status} onChange={e=>update(r.id,e.target.value)}>{['new','contacted','accepted','closed'].map(s=><option key={s}>{s}</option>)}</select></label></article>)}</section>}
 export function AdminContent(){
@@ -39,7 +40,7 @@ export function AdminContent(){
   }finally{setBusy(false)}
  }
  return <section className="admin-panel">
-  <h2>Content and policies</h2>
+  <SiteImageSettings/><h2>Content and policies</h2>
   <p>Save plain text as a draft, review the saved version, then publish it. To reopen a new draft, enter its slug and load the preview.</p>
   {error&&<p role="alert">{error}</p>}
   <label>Existing page<select disabled={busy} defaultValue="" onChange={event=>{
