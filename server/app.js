@@ -1,3 +1,4 @@
+import {configureTrustedProxy} from './config/trusted-proxy.js';
 import {organizationDraft} from './organization-draft.js';
 import express from'express';
 import {workflows} from './workflows.js';
@@ -33,6 +34,7 @@ export function createApp(options={}){
   for(const dir of Object.values(dirs))fsSync.mkdirSync(dir,{recursive:true});
 
   const app=express();
+  configureTrustedProxy(app,options.trustedProxyPeers??process.env.TRUSTED_PROXY_PEERS);
   const cookie={httpOnly:true,secure:process.env.NODE_ENV==='production',sameSite:'lax',path:'/',maxAge:8*3600e3};
   const valid=['image/jpeg','image/png','image/webp'];
   const configuredOrigin=options.trustedOrigin??process.env.APP_ORIGIN;

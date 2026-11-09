@@ -28,3 +28,19 @@ Hostinger documents Express ZIP deployment and Node 24 support for eligible Busi
 Use hostinger-env.example.txt as a list of variable names. Configure values in hPanel. Keep SESSION_SECRET unique to staging and at least 32 characters. Verify UPLOAD_ROOT is absolute and writable by the application process. Back up the database and upload root separately, then rehearse a restoration before production approval.
 
 The current changes reuse the existing migration schema. Run the normal checksum-gated migration command on the isolated staging database. Staging deployment is blocked until an authorized isolated Hostinger application and MariaDB target are available.
+
+## Reverse proxy and live image-settings incident
+
+The app trusts only the immediate TCP peer when its IP is in the comma-separated TRUSTED_PROXY_PEERS allowlist. This keeps direct requests keyed on the socket address and uses the last X-Forwarded-For value for requests from a trusted peer. Express rate-limit validation stays enabled.
+
+Before redeploying, confirm the immediate Express peer IPs or narrowly scoped CIDRs with Hostinger. Verify those peers overwrite or append the actual client IP and sanitize forwarded host and protocol on every ingress path, including temporary hostnames and any origin path. Leave TRUSTED_PROXY_PEERS unset until verified. With no allowlist, proxy traffic shares its socket IP for rate limits. Do not configure a wildcard, a hop count alone, or a shared ingress range that accepts unsanitized forwarding headers.
+
+Live read-only observations on 9 November 2026:
+
+- /api/health and /api/organization returned 200.
+- /api/site-images, /api/members, /api/programs and /api/verified-certificates returned 400. The response for site-images was the generic Express error body.
+- Unauthenticated /api/admin/site-images/logo, /favicon and /hero requests returned 401 as expected.
+
+The public image index performs a SELECT against site_image_slots from migration 009. The authenticated settings reads use the same table after session authorization. Reads do not use UPLOAD_ROOT. Images in these slots are stored in MariaDB, while the older gallery, member and programme upload paths use UPLOAD_ROOT. Member and programme queries use columns added in 010, and the certificate query reads the table added in 011. Migration 008 defines content drafts and is separate from image slots.
+
+The failure pattern and previously documented baseline without a migration ledger point to missing schema upgrades or privileges for the live application DB user. The specific SQL error was not accessible from public responses. Check the application logs and inspect the active database with read-only access. Check the ledger for 008 through 011, verify the image tables and three seed slots, verify 010 visibility and categorization columns and 011 tables, and check the application account's privileges. If the ledger is absent or incomplete, follow the repository's reviewed database migration plan, backup and stage first. Keep the migration provenance guard intact. After an approved repair, smoke-test the public image index and the authenticated reads for all three slots before testing uploads.

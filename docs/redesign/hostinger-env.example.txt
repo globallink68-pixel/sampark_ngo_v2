@@ -9,3 +9,5 @@ DB_PASSWORD=
 SESSION_SECRET=
 UPLOAD_ROOT=
 # PORT is supplied by the hosting platform.
+# Confirmed immediate proxy peers only. Leave empty until verified.
+TRUSTED_PROXY_PEERS=
