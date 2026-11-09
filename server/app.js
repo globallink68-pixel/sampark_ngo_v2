@@ -109,9 +109,9 @@ export function createApp(options={}){
   app.post('/api/auth/logout',admin,sameOrigin,async(request,response)=>{await db().execute('update admins set session_token=NULL,expires_at=NULL where id=?',[request.admin.id]);response.clearCookie('admin',cookie);response.sendStatus(204)});
   app.post('/api/contact',rateLimit({windowMs:60000,max:5}),async(request,response)=>{const details=contactInput(request.body);if(!details||request.body.website)return response.status(400).json({error:'Please check the enquiry details and consent.'});await db().execute("insert into contact_messages(name,address,city,state,postal_code,email,mobile,subject,message,status) values(?,?,?,?,?,?,?,?,?,'new')",[details.name,details.address,details.city,details.state,details.postalCode,details.email,details.mobile,details.subject,details.message]);response.sendStatus(201)});
 
-  app.get('/api/gallery',async(request,response)=>response.json((await db().execute('select id,title,description,image_path,event_date,display_order from gallery_items where active=1 order by display_order,id'))[0]));
-  app.get('/api/members',async(request,response)=>response.json((await db().execute('select id,name,designation,bio,photo_path,display_order from members where active=1 order by display_order,id'))[0]));
-  app.get('/api/programs',async(request,response)=>response.json((await db().execute('select id,title,short_description,description,image_path,location,start_date,end_date,status,display_order from programs where active=1 order by display_order,id'))[0]));
+  app.get('/api/gallery',async(request,response)=>response.json((await db().execute('select id,title,description,image_path,event_date,display_order,album from gallery_items where active=1 and public_visible=1 order by display_order,id'))[0]));
+  app.get('/api/members',async(request,response)=>response.json((await db().execute('select id,name,designation,bio,photo_path,display_order,category from members where active=1 and public_visible=1 order by display_order,id'))[0]));
+  app.get('/api/programs',async(request,response)=>response.json((await db().execute('select id,title,short_description,description,image_path,location,start_date,end_date,status,display_order,category from programs where active=1 and public_visible=1 order by display_order,id'))[0]));
   app.get('/api/organization',async(request,response)=>{const[rows]=await db().execute(`select ${organizationColumns.join(',')} from organization_settings where id=1`);return response.json(rows[0]?publicOrganization(rows[0]):{})});
   app.get('/api/admin/gallery',admin,async(request,response)=>response.json((await db().execute('select * from gallery_items order by created_at desc'))[0]));
   app.get('/api/admin/members',admin,async(request,response)=>response.json((await db().execute('select * from members order by display_order,id'))[0]));
@@ -164,7 +164,7 @@ export function createApp(options={}){
     app.get('/robots.txt',(_request,response)=>response.type('text/plain').send('User-agent: *\nDisallow: /admin\nDisallow: /api/\n'+(originUrl(configuredOrigin)?'Sitemap: '+originUrl(configuredOrigin)+'/sitemap.xml\n':'')));
     app.get('/sitemap.xml',async(_request,response)=>{
       const origin=originUrl(configuredOrigin);if(!origin)return response.sendStatus(503);
-      const [programs]=await db().execute('SELECT id FROM programs WHERE active=1 ORDER BY id');
+      const [programs]=await db().execute('SELECT id FROM programs WHERE active=1 AND public_visible=1 ORDER BY id');
       const [pages]=await db().execute("SELECT slug,kind FROM content_pages WHERE published=1 AND kind IN ('page','campaign','activity') ORDER BY slug");
       const paths=[...Object.keys(publicRoutes).filter(p=>!['/search','/verify-member','/members','/our-work','/sponsors'].includes(p)),...programs.map(p=>'/programs/'+p.id),...pages.map(p=>({page:'/pages/',campaign:'/campaigns/',activity:'/activities/'})[p.kind]+p.slug)];
       if(paths.length>50000)return response.status(503).type('text/plain').send('Sitemap requires an index.');

@@ -1,13 +1,16 @@
+import {siteSettingsSlug} from '../src/lib/site-settings.js';
 import rateLimit from 'express-rate-limit';
 import {db} from './config/db.js';
 import {admin} from './middleware/auth.js';
 import {contentDrafts} from './content-drafts.js';
 import {siteImages} from './site-images.js';
+import {recordDrafts} from './record-drafts.js';
 const kinds=['volunteer','internship','membership','csr','pickup','sponsor'];
 const text=(value,max)=>typeof value==='string'&&value.trim().length<=max?value.trim():null;
 export function workflows(app,sameOrigin){
  contentDrafts(app,db,admin,sameOrigin);
  siteImages(app,db,admin,sameOrigin);
+ recordDrafts(app,db,admin,sameOrigin);
  app.get('/api/health',(_r,s)=>s.json({status:'ok',payments:'retired'}));
  app.post('/api/applications/:kind',rateLimit({windowMs:60000,limit:5}),async(r,s)=>{
   const name=text(r.body.name,120),email=text(r.body.email,254),message=text(r.body.message,5000),mobile=text(r.body.mobile??'',30);
@@ -27,10 +30,11 @@ export function workflows(app,sameOrigin){
  app.put('/api/admin/content/:slug',admin,sameOrigin,async(r,s)=>{
   const title=text(r.body.title,160),body=text(r.body.body,30000),kind=r.body.kind||'page';
   if(!/^[a-z0-9-]{1,100}$/.test(r.params.slug)||!title||!body||!['page','policy','campaign','activity','setting'].includes(kind)||typeof r.body.published!=='boolean')return s.sendStatus(400);
+  if(r.params.slug===siteSettingsSlug&&r.body.published)return s.status(409).json({error:'Publish site settings through the draft workflow.'});
   // Plain text only. Authenticated documents and payment coordinates have a separate approval gate.
   if(/(?:bank-account|bank-details|upi|certificate|legal-document)/.test(r.params.slug))return s.status(409).json({error:'This content requires authenticated source review.'});
   const c=await db().getConnection();try{await c.beginTransaction();await c.execute('INSERT INTO content_pages(slug,kind,title,body,published) VALUES (?,?,?,?,?) ON DUPLICATE KEY UPDATE title=VALUES(title),body=VALUES(body),kind=VALUES(kind),published=VALUES(published)',[r.params.slug,kind,title,body,r.body.published]);await c.execute('INSERT INTO audit_events(admin_id,action,resource) VALUES (?,?,?)',[r.admin.id,'content.update',r.params.slug]);await c.commit();s.json({ok:true})}catch(e){await c.rollback();throw e}finally{c.release()}
  });
  app.get('/api/admin/audit',admin,async(_r,s)=>s.json((await db().execute('SELECT id,admin_id,action,resource,created_at FROM audit_events ORDER BY id DESC LIMIT 500'))[0]));
- app.get('/api/programs/:id',async(r,s)=>{if(!/^\d+$/.test(r.params.id))return s.sendStatus(404);const [rows]=await db().execute('SELECT id,title,short_description,description,image_path,location,start_date,end_date,status FROM programs WHERE id=? AND active=1',[r.params.id]);rows[0]?s.json(rows[0]):s.sendStatus(404)});
+ app.get('/api/programs/:id',async(r,s)=>{if(!/^\d+$/.test(r.params.id))return s.sendStatus(404);const [rows]=await db().execute('SELECT id,title,short_description,description,image_path,location,start_date,end_date,status,category FROM programs WHERE id=? AND active=1 AND public_visible=1',[r.params.id]);rows[0]?s.json(rows[0]):s.sendStatus(404)});
 }

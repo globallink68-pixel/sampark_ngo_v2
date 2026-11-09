@@ -1,0 +1,54 @@
+/* Shared public presentation across the existing route layouts. */
+.public-view {
+  --site-ink: #173128;
+  --site-accent: #327451;
+  --site-edge: #dce8df;
+  --site-radius: 1rem;
+  --site-motion: 200ms ease-out;
+}
+
+.public-view :is(.learning-card, .donation-panel, .gallery-trigger, .site-faq) {
+  border-radius: var(--site-radius);
+  overflow: hidden;
+}
+
+.public-view :is(.learning-card, .gallery-trigger, .btn) {
+  transition: transform var(--site-motion), box-shadow var(--site-motion);
+}
+
+.public-view :is(.learning-card, .gallery-trigger, .btn):focus-within {
+  box-shadow: 0 0 0 2px var(--site-accent);
+}
+
+@media (hover: hover) {
+  .public-view :is(.learning-card, .gallery-trigger):hover {
+    transform: translateY(-3px);
+    box-shadow: 0 0.5rem 1.5rem rgb(23 49 40 / 12%);
+  }
+}
+
+.public-view :is(.hero-copy, .page-header > .container, .gallery-dialog[open]) {
+  animation: site-enter 300ms ease-out both;
+}
+
+@keyframes site-enter {
+  from { opacity: 0; transform: translateY(0.5rem); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.public-view .site-faq {
+  border: 1px solid var(--site-edge);
+  margin-block: 0.75rem;
+  padding: 1rem;
+}
+.public-view .site-faq summary { cursor: pointer; font-weight: 700; }
+.public-view .site-faq p { margin: 0.75rem 0 0; }
+.public-view .donation-qr { display: block; width: min(100%, 14rem); height: auto; margin-inline: auto; }
+.public-view :is(.brand, .donation-panel, .site-faq) { overflow-wrap: anywhere; }
+
+@media (prefers-reduced-motion: reduce) {
+  .public-view :is(.learning-card, .gallery-trigger, .btn, .hero-copy, .page-header > .container, .gallery-dialog[open]) {
+    animation: none;
+    transition: none;
+  }
+}

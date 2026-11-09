@@ -13,7 +13,7 @@ export async function routeMetadata(route,execute){
  if(adminRoutes.has(route))return {status:200,title:'Administration',description:'Authorised administration only.',noindex:true};
  if(publicRoutes[route])return {status:200,title:publicRoutes[route],description,noindex:['/search','/verify-member'].includes(route)};
  let match=route.match(/^\/programs\/(\d+)$/);
- if(match){const [rows]=await execute('SELECT title,short_description FROM programs WHERE id=? AND active=1',[match[1]]);if(rows[0])return {status:200,title:rows[0].title,description:rows[0].short_description||description,noindex:false};}
+ if(match){const [rows]=await execute('SELECT title,short_description FROM programs WHERE id=? AND active=1 AND public_visible=1',[match[1]]);if(rows[0])return {status:200,title:rows[0].title,description:rows[0].short_description||description,noindex:false};}
  match=route.match(/^\/(campaigns|activities|pages)\/([a-z0-9-]{1,100})$/);
  if(match){const kind={campaigns:'campaign',activities:'activity',pages:'page'}[match[1]];const [rows]=await execute('SELECT title,body FROM content_pages WHERE slug=? AND kind=? AND published=1',[match[2],kind]);if(rows[0])return {status:200,title:rows[0].title,description:String(rows[0].body).slice(0,180),noindex:false};}
  return {status:404,title:'Page not found',description:'The requested page is not available.',noindex:true};

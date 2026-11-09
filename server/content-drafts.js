@@ -1,3 +1,4 @@
+import {parseSiteSettings,siteSettingsSlug} from '../src/lib/site-settings.js';
 const route='/api/admin/content/:slug/draft';
 const validSlug=slug=>/^[a-z0-9-]{1,100}$/.test(slug)&&!/(?:bank-account|bank-details|upi|certificate|legal-document)/.test(slug);
 const kinds=['page','policy','campaign','activity','setting'];
@@ -35,6 +36,7 @@ export function contentDrafts(app,db,admin,sameOrigin){
  app.put(route,admin,sameOrigin,async(req,res)=>{
   const slug=req.params.slug,draft=draftInput(req.body);
   if(!validSlug(slug)||!draft)return res.sendStatus(400);
+  if(slug===siteSettingsSlug&&(!parseSiteSettings(draft.body)||draft.kind!=='setting'))return res.status(400).json({error:'Enter valid site settings JSON.'});
   const status=await transaction(db,async connection=>{
    await connection.execute('INSERT INTO content_drafts(slug,kind,title,body) VALUES (?,?,?,?) ON DUPLICATE KEY UPDATE kind=VALUES(kind),title=VALUES(title),body=VALUES(body)',[slug,draft.kind,draft.title,draft.body]);
    await connection.execute('INSERT INTO audit_events(admin_id,action,resource) VALUES (?,?,?)',[req.admin.id,'content.draft',slug]);
@@ -46,6 +48,7 @@ export function contentDrafts(app,db,admin,sameOrigin){
  app.post(route+'/publish',admin,sameOrigin,async(req,res)=>{
   const slug=req.params.slug,reviewed=draftInput(req.body);
   if(!validSlug(slug)||!reviewed)return res.sendStatus(400);
+  if(slug===siteSettingsSlug&&(!parseSiteSettings(reviewed.body)||reviewed.kind!=='setting'))return res.sendStatus(400);
   const status=await transaction(db,async connection=>{
    const [rows]=await connection.execute('SELECT title,body,kind FROM content_drafts WHERE slug=? FOR UPDATE',[slug]);
    const draft=rows[0];

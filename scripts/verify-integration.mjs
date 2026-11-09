@@ -80,6 +80,90 @@ try{
   const [[stored]]=await c.execute('SELECT draft_id,public_id FROM site_image_slots WHERE slot=?',['logo']);
   assert.deepEqual({...stored},{draft_id:null,public_id:third});
  });
+ await check('member draft is private and publishes its approved fields',async()=>{
+  const route='/api/admin/record-drafts/members';
+  const profile={name:'Synthetic member',designation:'Trainer',bio:'Approved public biography.',category:'Staff',display_order:5,active:true,public_visible:true};
+  const draft=await mutation('post',route).field('record',JSON.stringify(profile)).attach('image',png,{filename:'qa.png',contentType:'image/png'});
+  assert.equal(draft.status,201);
+  const url=route+'/'+draft.body.id;
+  assert.equal((await request(app).get(url+'/image')).status,401);
+  assert.equal((await agent.get(url+'/image')).headers['content-type'],'image/webp');
+  assert.deepEqual((await request(app).get('/api/members')).body,[]);
+  assert.equal((await mutation('post',url+'/publish').send({revision:'invalid'})).status,409);
+  const result=await mutation('post',url+'/publish').send({revision:draft.body.revision});
+  assert.equal(result.status,200);
+  const [member]=(await request(app).get('/api/members')).body;
+  assert.equal(member.name,profile.name);
+  assert.equal(member.category,profile.category);
+  assert.equal((await request(app).get('/'+member.photo_path)).status,200);
+  assert.equal((await agent.get(url+'/image')).status,404);
+ });
+ await check('programme and gallery edits preserve existing images until publication',async()=>{
+  for(const [kind,id,fields,publicPath] of [
+   ['programs',programme,{title:'Revised programme',status:'ongoing',category:'Training'},'/api/programs/'+programme],
+   ['gallery',gallery,{title:'Revised image',album:'Training'},'/api/gallery']
+  ]){
+   const route='/api/admin/record-drafts/'+kind;
+   const before=await request(app).get(publicPath);
+   const old=kind==='gallery'?before.body.find(row=>row.id===id):before.body;
+   const draft=await mutation('post',route+'?target='+id).field('record',JSON.stringify({...fields,display_order:42,active:true,public_visible:true}));
+   assert.equal(draft.status,201);
+   assert.deepEqual((await request(app).get(publicPath)).body,before.body);
+   assert.equal((await mutation('post',route+'/'+draft.body.id+'/publish').send({revision:draft.body.revision})).status,200);
+   const after=(await request(app).get(publicPath)).body;
+   const current=kind==='gallery'?after.find(row=>row.id===id):after;
+   assert.equal(current.title,fields.title);
+   assert.equal(current.category??current.album,fields.category??fields.album);
+   assert.equal(current.image_path,old.image_path);
+   assert.equal((await request(app).get('/'+old.image_path)).status,200);
+  }
+ });
+ await check('hidden member photo stays private until the member is explicitly made public',async()=>{
+  const route='/api/admin/record-drafts/members';
+  const profile={name:'Synthetic private member',designation:'Trainer',display_order:9,active:true,public_visible:false};
+  const draft=await mutation('post',route).field('record',JSON.stringify(profile)).attach('image',png,{filename:'qa.png',contentType:'image/png'});
+  const hidden=await mutation('post',route+'/'+draft.body.id+'/publish').send({revision:draft.body.revision});
+  assert.equal(hidden.status,200);
+  const [[row]]=await c.execute('SELECT photo_path FROM members WHERE id=?',[hidden.body.id]);
+  assert.equal((await request(app).get('/'+row.photo_path)).status,404);
+  assert.equal((await agent.get(route+'/current/'+hidden.body.id+'/image')).status,200);
+  assert.ok(!(await request(app).get('/api/members')).body.some(member=>member.id===hidden.body.id));
+  const revised=await mutation('post',route+'?target='+hidden.body.id).field('record',JSON.stringify({...profile,public_visible:true}));
+  assert.equal((await mutation('post',route+'/'+revised.body.id+'/publish').send({revision:revised.body.revision})).status,200);
+  assert.equal((await request(app).get('/'+row.photo_path)).status,200);
+ });
+ await check('certificate and manual donation records require verification and support public withdrawal',async()=>{
+  for(const [kind,fields] of [
+   ['certificates',{title:'Synthetic redacted certificate'}],
+   ['donations',{title:'Synthetic manual donation',bank_name:'Synthetic bank',account_holder:'Synthetic account',account_number:'123456789',ifsc:'TEST0123456',upi_id:'synthetic@invalid'}]
+  ]){
+   const route='/api/admin/record-drafts/'+kind,publicRoute='/api/verified-'+kind;
+   const profile={...fields,display_order:0,active:true,public_visible:true,verified:false};
+   const save=(payload,suffix='')=>mutation('post',route+suffix).field('record',JSON.stringify(payload));
+   assert.equal((await save(profile)).status,400);
+   const pending=await save({...profile,verified:true}).attach('image',png,{filename:'qa.png',contentType:'image/png'});
+   assert.equal(pending.status,201);
+   assert.deepEqual((await request(app).get(publicRoute)).body,[]);
+   const published=await mutation('post',route+'/'+pending.body.id+'/publish').send({revision:pending.body.revision});
+   assert.equal(published.status,200);
+   const [record]=(await request(app).get(publicRoute)).body;
+   assert.equal(record.title,fields.title);
+   assert.equal((await request(app).get(record.image_path)).headers['content-type'],'image/webp');
+   const withdraw=await save({...profile,public_visible:false},'?target='+published.body.id);
+   assert.equal((await mutation('post',route+'/'+withdraw.body.id+'/publish').send({revision:withdraw.body.revision})).status,200);
+   assert.deepEqual((await request(app).get(publicRoute)).body,[]);
+   assert.equal((await request(app).get(record.image_path)).status,404);
+  }
+ });
+ await check('site settings reject unsafe links and publish validated configuration',async()=>{
+  const route='/api/admin/content/site-settings/draft';
+  const payload={title:'Site settings',kind:'setting',body:JSON.stringify({home:['hero','faq'],navigation:[{to:'/contact',label:'Contact'}],faq:[{question:'How can I help?',answer:'Contact the academy.'}]})};
+  assert.equal((await mutation('put',route).send({...payload,body:JSON.stringify({navigation:[{to:'//external.example',label:'Bad'}]})})).status,400);
+  assert.equal((await mutation('put',route).send(payload)).status,204);
+  assert.equal((await request(app).get('/api/content/site-settings')).status,404);
+  assert.equal((await mutation('post',route+'/publish').send(payload)).status,204);
+  assert.equal((await request(app).get('/api/content/site-settings')).body.body,payload.body);
+ });
  await check('financial history immutable under retired endpoints',async()=>{await c.execute("INSERT INTO donations(donor_name,donor_email,amount,status,razorpay_order_id,razorpay_payment_id) VALUES ('Synthetic donor','qa@example.test',12345,'paid','synthetic-order','synthetic-payment')");const [before]=await c.execute('SELECT * FROM donations');for(const url of ['/api/donations/create-order','/api/donations/verify-payment','/api/webhooks/razorpay'])assert.equal((await agent.post(url).send({amount:1})).status,410);const [after]=await c.execute('SELECT * FROM donations');assert.deepEqual(after,before);const summary=await agent.get('/api/admin/donations/summary');assert.equal(Number(summary.body.paid_amount),12345)});
  await check('foreign key restricts historical enquiry deletion',async()=>{await c.execute("INSERT INTO contact_interactions(contact_message_id,interaction_type,note,interaction_at) VALUES (1,'note','Synthetic interaction',NOW())");await assert.rejects(c.execute('DELETE FROM contact_messages WHERE id=1'),{code:'ER_ROW_IS_REFERENCED_2'})});
  await check('missing receipts fail closed',async()=>assert.equal((await agent.get('/api/receipts/1')).status,404));

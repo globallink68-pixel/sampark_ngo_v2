@@ -1,3 +1,4 @@
+import {RecordDraftEditor} from './record-draft-editor';
 import React,{useEffect,useState} from 'react';
 import {adminRequest} from './lib/api';
 import {SiteImageSettings} from './site-image-settings';
@@ -40,7 +41,11 @@ export function AdminContent(){
   }finally{setBusy(false)}
  }
  return <section className="admin-panel">
-  <SiteImageSettings/><h2>Content and policies</h2>
+  <SiteImageSettings/><details><summary>Certificates and manual donations</summary><RecordDraftEditor collection="certificates"/><RecordDraftEditor collection="donations"/></details><h2>Content and policies</h2>
+  <details><summary>Site settings fields</summary>
+   <p>Use slug <code>site-settings</code> and type <code>setting</code>. Save and preview before publishing. Omitted fields use the site defaults. Home section keys are hero, introduction, mission, programmes, gallery, transparency, volunteer, donation, impact, testimonials and faq. Only enter verified impact figures and approved testimonials. Keep hero in the list.</p>
+   <pre>{JSON.stringify({navigation:[{to:'/',label:'Home'},{to:'/about',label:'About us'}],home:['hero','introduction','faq'],faq:[{question:'How do I reach the academy?',answer:'Use the contact page.'}],footer:'Footer text',impact:[],testimonials:[],mission:'Mission statement',vision:'Vision statement',history:'NGO history',metadata:{'/about':{title:'About Sampark',description:'Page description'}},heroAction:{to:'/programs',label:'Explore programmes'}},null,2)}</pre>
+  </details>
   <p>Save plain text as a draft, review the saved version, then publish it. To reopen a new draft, enter its slug and load the preview.</p>
   {error&&<p role="alert">{error}</p>}
   <label>Existing page<select disabled={busy} defaultValue="" onChange={event=>{
