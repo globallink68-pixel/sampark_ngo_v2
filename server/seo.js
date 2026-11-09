@@ -1,3 +1,4 @@
+import {parseSiteSettings,siteSettingsSlug} from '../src/lib/site-settings.js';
 const site='Sampark Skill Academy';
 const description='Practical learning, personal growth and community participation. Confirm current availability with the academy.';
 export const publicRoutes={
@@ -8,7 +9,7 @@ const adminRoutes=new Set(['','/login','/gallery','/members','/programs','/organ
 export const escapeMarkup=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
 export function originUrl(value){try{const url=new URL(value);return ['http:','https:'].includes(url.protocol)&&!url.username&&!url.password?url.origin:null}catch{return null}}
 export const normalizeRoute=route=>route==='/'?'/':route.replace(/\/+$/,'').toLowerCase();
-export async function routeMetadata(route,execute){
+async function baseMetadata(route,execute){
  route=normalizeRoute(route);
  if(adminRoutes.has(route))return {status:200,title:'Administration',description:'Authorised administration only.',noindex:true};
  if(publicRoutes[route])return {status:200,title:publicRoutes[route],description,noindex:['/search','/verify-member'].includes(route)};
@@ -18,8 +19,20 @@ export async function routeMetadata(route,execute){
  if(match){const kind={campaigns:'campaign',activities:'activity',pages:'page'}[match[1]];const [rows]=await execute('SELECT title,body FROM content_pages WHERE slug=? AND kind=? AND published=1',[match[2],kind]);if(rows[0])return {status:200,title:rows[0].title,description:String(rows[0].body).slice(0,180),noindex:false};}
  return {status:404,title:'Page not found',description:'The requested page is not available.',noindex:true};
 }
+export async function routeMetadata(route,execute){
+ const metadata=await baseMetadata(route,execute);
+ if(metadata.status!==200||metadata.noindex)return metadata;
+ try{
+  const result=await execute("SELECT body FROM content_pages WHERE slug=? AND kind='setting' AND published=1",[siteSettingsSlug]);
+  const overrides=parseSiteSettings(result?.[0]?.[0]?.body)?.metadata?.[normalizeRoute(route)];
+  if(overrides)return {...metadata,title:overrides.title,description:overrides.description,image:overrides.image};
+ }catch(error){
+  if(process.env.NODE_ENV!=='test')console.warn('Published metadata unavailable',error.code??'read_failed');
+ }
+ return metadata;
+}
 export function renderMetadata(html,metadata,route,origin){
- const tags=`<title>${escapeMarkup(metadata.title)} | ${site}</title><meta name="description" content="${escapeMarkup(metadata.description)}"><meta name="robots" content="${metadata.noindex?'noindex, nofollow':'index, follow'}">${origin?`<link rel="canonical" href="${escapeMarkup(origin+route)}">`:''}<meta property="og:title" content="${escapeMarkup(metadata.title)} | ${site}"><meta property="og:description" content="${escapeMarkup(metadata.description)}"><meta property="og:type" content="website">`;
+ const tags=`<title>${escapeMarkup(metadata.title)} | ${site}</title><meta name="description" content="${escapeMarkup(metadata.description)}"><meta name="robots" content="${metadata.noindex?'noindex, nofollow':'index, follow'}">${origin?`<link rel="canonical" href="${escapeMarkup(origin+route)}">`:''}<meta property="og:title" content="${escapeMarkup(metadata.title)} | ${site}"><meta property="og:description" content="${escapeMarkup(metadata.description)}"><meta property="og:type" content="website">${origin?`<meta property="og:url" content="${escapeMarkup(origin+route)}">${metadata.image?`<meta property="og:image" content="${escapeMarkup(origin+metadata.image)}">`:""}`:""}`;
  let output=html.replace(/<title\b[^>]*>[\s\S]*?<\/title>/gi,'').replace(/<meta\s+[^>]*(?:name=["'](?:description|robots)["']|property=["']og:[^"']+["'])[^>]*>/gi,'').replace(/<link\s+[^>]*rel=["']canonical["'][^>]*>/gi,'');
  return /<head\b[^>]*>/i.test(output)?output.replace(/<head\b[^>]*>/i,head=>head+tags):output.replace(/<html\b[^>]*>/i,html=>html+'<head>'+tags+'</head>');
 }

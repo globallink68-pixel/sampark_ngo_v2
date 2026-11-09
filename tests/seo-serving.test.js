@@ -13,3 +13,11 @@ it('rejects external or malformed metadata paths',async()=>{expect((await reques
 it('keeps dynamic sitemap URLs public and correctly maps activity paths',async()=>{execute.mockResolvedValueOnce([[{id:1}]]).mockResolvedValueOnce([[{slug:'synthetic-activity',kind:'activity'}]]);const r=await request(app).get('/sitemap.xml');expect(r.status).toBe(200);expect(r.text).toContain('/activities/synthetic-activity');expect(r.text).not.toContain('/admin');expect(r.text).not.toContain('/verify-member')});
 it('redirects accepted case and trailing-slash variants to their canonical route',async()=>{const r=await request(app).get('/About/?source=fixture');expect(r.status).toBe(308);expect(r.headers.location).toBe('/about?source=fixture')});
 it('returns normalized canonical metadata to client-side route variants',async()=>{const r=await request(app).get('/api/page-metadata?path=%2FAbout%2F');expect(r.body.status).toBe(200);expect(r.body.canonical).toBe('https://academy.example.test/about')});
+
+it('renders only published metadata overrides in the initial HTML',async()=>{
+ execute.mockResolvedValueOnce([[{body:JSON.stringify({metadata:{'/about':{title:'About <Sampark>',description:'Approved description',image:'/community.webp'}}})}]]);
+ const response=await request(app).get('/about');
+ expect(response.text).toContain('<title>About &lt;Sampark&gt; | Sampark Skill Academy</title>');
+ expect(response.text).toContain('property="og:image" content="https://academy.example.test/community.webp"');
+ expect(execute.mock.calls[0][0]).toContain('published=1');
+});
