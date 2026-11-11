@@ -1,0 +1,239 @@
+.public-view .sampark-home {
+  --home-ink: #142038;
+  --home-teal: #0c4548;
+  --home-action: #08644f;
+  --home-mint: #e1f8ed;
+  --home-cream: #fffaf0;
+  --home-radius: 1.4rem;
+  --home-shadow: 0 12px 34px #163a3512;
+  --home-gutter: clamp(3.5rem, 7vw, 6.5rem);
+  --home-ease: cubic-bezier(.22, .61, .36, 1);
+  color: var(--home-ink);
+  background: #fffefb;
+}
+
+.public-view .sampark-home h1,
+.public-view .sampark-home h2 {
+  font-family: Arial, Helvetica, sans-serif;
+  font-weight: 800;
+  letter-spacing: -.055em;
+  color: inherit;
+}
+
+.public-view .sampark-home h2 {
+  font-size: clamp(2rem, 4vw, 3.75rem);
+  line-height: 1.06;
+}
+
+.public-view .sampark-home h1 em,
+.public-view .sampark-home h2 em {
+  font-family: 'Segoe Print', Georgia, cursive;
+  font-size: .86em;
+  font-weight: 700;
+  letter-spacing: -.075em;
+  color: var(--home-action);
+}
+
+.sampark-home .sampark-hero {
+  background: radial-gradient(ellipse at 75% 8%, #a8eed8, transparent 52%),
+    radial-gradient(ellipse at 5% 100%, #f9e1f2, transparent 40%),
+    linear-gradient(135deg, var(--home-cream), var(--home-mint));
+  padding-block: clamp(2.5rem, 6vw, 6rem);
+}
+
+.sampark-home .sampark-split {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: clamp(1.5rem, 5vw, 5rem);
+  align-items: center;
+}
+
+.sampark-home .sampark-hero h1 {
+  font-size: clamp(2.8rem, 6vw, 6rem);
+  line-height: 1.02;
+  margin: .4em 0 .3em;
+}
+
+.sampark-home .sampark-hero h1 span { color: #255bb4; }
+.public-view .sampark-home .sampark-hero h1 em { color: #087455; }
+@supports (background-clip: text) {
+  .public-view .sampark-home .sampark-hero h1 em {
+    background: linear-gradient(100deg, #0a6954, #234da3, #752c86);
+    background-clip: text;
+    color: transparent;
+  }
+}
+
+.sampark-home .sampark-hero p { max-width: 42ch; }
+.sampark-home .sampark-actions { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: 1.4rem; }
+.sampark-home .sampark-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: .75rem 1.2rem;
+  min-height: 44px;
+  border: 1px solid transparent;
+  border-radius: 3rem;
+  background: var(--home-action);
+  color: #fff;
+  font-weight: 700;
+  text-decoration: none;
+  transition: transform .22s var(--home-ease), background-color .22s ease;
+}
+.sampark-home .sampark-pill:hover { transform: translateY(-2px); background: #074c3d; color: white; }
+.sampark-home .sampark-secondary { color: var(--home-ink); background: #fff; border-color: #b9d6cd; }
+.sampark-home :is(a, summary):focus-visible { outline: 3px solid #2862bf; outline-offset: 4px; }
+.sampark-home .sampark-hero-art { position: relative; margin: 0; min-width: 0; }
+.sampark-home .sampark-hero-art img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 5 / 4;
+  object-fit: cover;
+  border: .45rem solid white;
+  border-radius: calc(var(--home-radius) + .5rem);
+  box-shadow: var(--home-shadow);
+}
+.sampark-home .sampark-badge {
+  position: absolute;
+  top: 1rem;
+  right: .9rem;
+  background: #fff0bf;
+  color: #503607;
+  border-radius: 3rem;
+  box-shadow: var(--home-shadow);
+  padding: .55rem .85rem;
+  font-size: .8rem;
+  font-weight: 700;
+}
+.sampark-home .sampark-hero-art figcaption { margin-top: .5rem; font-size: .8rem; }
+.sampark-home .sampark-section { padding-block: var(--home-gutter); }
+.sampark-home .sampark-campaign-grid,
+.sampark-home .sampark-impact-grid,
+.sampark-home .sampark-photo-grid {
+  display: grid;
+  gap: clamp(.7rem, 2vw, 1.5rem);
+  margin-top: 1.5rem;
+}
+.sampark-home .sampark-impact-grid,
+.sampark-home .sampark-photo-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.sampark-home .tone-amber { --tone: #f2b736; --tone-pale: #fff5d9; }
+.sampark-home .tone-blue { --tone: #477be0; --tone-pale: #ecf3ff; }
+.sampark-home .tone-green { --tone: #25ba89; --tone-pale: #e5f8ef; }
+.sampark-home .tone-violet { --tone: #9861cf; --tone-pale: #f4eaff; }
+.sampark-home .sampark-card,
+.sampark-home .sampark-allocation {
+  min-width: 0;
+  padding: clamp(1rem, 2.6vw, 1.9rem);
+  border: 1px solid #dce7e2;
+  border-top: 4px solid var(--tone, #25ba89);
+  border-radius: var(--home-radius);
+  background: var(--tone-pale, white);
+  box-shadow: var(--home-shadow);
+}
+.sampark-home .sampark-card h3,
+.sampark-home .sampark-allocation h3 { font: 750 1.25rem/1.22 Arial, sans-serif; margin: .65rem 0; }
+.sampark-home .sampark-impact-grid h3 { font-size: 1rem; margin-bottom: 0; }
+.sampark-home .sampark-card a { display: block; margin-top: .65rem; }
+.sampark-home .sampark-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 2.6rem;
+  height: 2.6rem;
+  border-radius: .85rem;
+  background: var(--tone);
+  color: #101b30;
+  font-size: 1.3rem;
+}
+.sampark-home .sampark-count {
+  display: block;
+  font-size: clamp(1.65rem, 4vw, 3.4rem);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+  margin-top: .6rem;
+}
+.sampark-home .sampark-media-note {
+  display: grid;
+  place-items: center;
+  text-align: center;
+  min-height: 6rem;
+  border: 1px dashed #986c20;
+  border-radius: .8rem;
+  font-size: .85rem;
+  padding: .8rem;
+}
+.sampark-home .sampark-impact { background: linear-gradient(135deg, var(--home-mint), var(--home-cream)); }
+.sampark-home .sampark-giving { background: var(--home-cream); }
+.sampark-home .sampark-allocation-bar {
+  display: flex;
+  gap: 3px;
+  height: .85rem;
+  border-radius: 1rem;
+  overflow: hidden;
+}
+.sampark-home .sampark-allocation-bar span { background: var(--tone); transform-origin: left; }
+.sampark-home .sampark-allocation ul { padding: 0; margin: 1rem 0 0; list-style: none; }
+.sampark-home .sampark-allocation li { border-left: 4px solid var(--tone); padding: .35rem .7rem; margin-top: .35rem; background: var(--tone-pale); }
+.sampark-home .sampark-allocation small { display: block; }
+.sampark-home .sampark-photos {
+  text-align: center;
+  color: white;
+  background: radial-gradient(ellipse at 60% 0%, #16585a, transparent 75%), var(--home-teal);
+}
+.sampark-home .sampark-support { color: white; background: var(--home-ink); }
+.public-view .sampark-home :is(.sampark-photos, .sampark-support) h2 em { color: #9ff2cf; }
+.sampark-home .sampark-photo-grid { padding: .5rem .5rem 1.25rem; }
+.sampark-home .sampark-photo-grid figure {
+  min-width: 0;
+  margin: 0;
+  color: var(--home-ink);
+  background: #fffaf0;
+  border-radius: .6rem;
+  padding: .45rem;
+  box-shadow: 0 .8rem 2rem #061c2540;
+  rotate: -2deg;
+  transition: rotate .24s var(--home-ease), translate .24s var(--home-ease);
+}
+.sampark-home .sampark-photo-grid figure:nth-child(even) { rotate: 2deg; translate: 0 .75rem; }
+.sampark-home .sampark-photo-grid figure:hover { rotate: 0deg; translate: 0 -.2rem; }
+.sampark-home .sampark-photo-grid img { display: block; width: 100%; height: auto; aspect-ratio: 4 / 3; object-fit: cover; border-radius: .3rem; }
+.sampark-home .sampark-photo-grid figcaption { padding: .35rem; font-weight: 700; overflow-wrap: anywhere; }
+.sampark-home .sampark-photos .sampark-pill { margin-top: 1.5rem; background: #b5f5d8; color: #123b34; }
+.sampark-home .sampark-reviews .learning-card { border-radius: var(--home-radius); box-shadow: var(--home-shadow); }
+
+@media (min-width: 768px) {
+  .sampark-home .sampark-split { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sampark-home .sampark-campaign-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .sampark-home :is(.sampark-impact-grid, .sampark-photo-grid) { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .sampark-home .sampark-hero-copy > *,
+  .sampark-home .sampark-hero-art,
+  .sampark-home .sampark-entered > * { animation: sampark-rise .58s var(--home-ease) backwards; }
+  .sampark-home .sampark-hero-copy > :nth-child(2),
+  .sampark-home .sampark-entered > :nth-child(2) { animation-delay: .06s; }
+  .sampark-home .sampark-hero-copy > :nth-child(3),
+  .sampark-home .sampark-entered > :nth-child(3) { animation-delay: .12s; }
+  .sampark-home .sampark-hero-copy > :nth-child(4),
+  .sampark-home .sampark-entered > :nth-child(4) { animation-delay: .18s; }
+  .sampark-home .sampark-badge { animation: sampark-badge-settle .72s .3s var(--home-ease) backwards; }
+  .sampark-home .sampark-card { transition: translate .24s var(--home-ease), box-shadow .24s var(--home-ease); }
+  .sampark-home .sampark-card:hover { translate: 0 -.2rem; box-shadow: 0 14px 30px #163a3522; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sampark-home *,
+  .sampark-home *::before,
+  .sampark-home *::after { transition: none !important; animation: none !important; }
+  .sampark-home :is(.sampark-pill, .sampark-photo-grid figure):hover { transform: none; translate: none; }
+}
+
+@keyframes sampark-rise {
+  from { opacity: .55; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes sampark-badge-settle {
+  from { opacity: 0; transform: translateY(10px) rotate(5deg); }
+  to { opacity: 1; transform: translateY(0) rotate(0); }
+}
