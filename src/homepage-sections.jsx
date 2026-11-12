@@ -1,4 +1,4 @@
-import React, {useEffect, useRef, useState} from 'react';
+import React, {useEffect, useId, useRef, useState} from 'react';
 import {Link} from 'react-router-dom';
 import {gsap} from 'gsap';
 import {ScrollTrigger} from 'gsap/ScrollTrigger';
@@ -61,9 +61,11 @@ export function Impact({demo = false, entries = []}) {
     return canonical && Number.isSafeInteger(value) && value >= 0 ? value : null;
   });
   const hasVerified = verified.some(value => value !== null);
-  const showDemo = !hasVerified && (demo || preview);
+  const canPreview = verified.some(value => value === null);
+  const showDemo = canPreview && (demo || preview);
   const counts = showDemo ? impact.map(([, , , value]) => value) : verified;
-  const countKey = counts.join('/');
+  const countKey = [showDemo, ...counts].join('/');
+  const gridId = useId();
   const root = useRef(null);
   useEffect(() => {
     if (!root.current.querySelector('[data-count]')) return;
@@ -103,14 +105,16 @@ export function Impact({demo = false, entries = []}) {
   return <section ref={root} className="sampark-section sampark-impact" aria-labelledby="impact-heading">
     <div className="container">
       <h2 id="impact-heading">Our <em>impact.</em></h2>
-      {showDemo && <p>DEMO · Sample figures for animation preview only.</p>}
       {!showDemo && !hasVerified && <p>Impact data being updated</p>}
-      {!hasVerified && !demo && <button type="button" className="sampark-pill" aria-pressed={preview}
-        onClick={() => setPreview(value => !value)}>{preview ? 'Close demo preview' : 'Preview counter animation (demo)'}</button>}
-      <div className="sampark-impact-grid" data-reveal-group>
+      {(showDemo || canPreview) && <div className="sampark-impact-preview">
+        {showDemo && <p id={gridId+'-notice'}>DEMO · Sample figures for animation preview only.</p>}
+        {canPreview && !demo && <button type="button" className="sampark-pill" aria-pressed={showDemo} aria-controls={gridId}
+          onClick={() => setPreview(value => !value)}>{showDemo ? 'Close demo preview' : 'Preview counter animation (demo)'}</button>}
+      </div>}
+      <div id={gridId} className="sampark-impact-grid" data-reveal-group aria-describedby={showDemo ? gridId+'-notice' : undefined}>
         {impact.map(([label, icon, tone], index) => <article key={label} className={`sampark-card tone-${tone}`}>
           <span className="sampark-icon" aria-hidden="true">{icon}</span>
-          {counts[index] !== null && <strong className="sampark-count" key={counts[index]}>
+          {counts[index] !== null && <strong className="sampark-count" key={`${showDemo}-${counts[index]}`}>
             <span className="visually-hidden">{counts[index].toLocaleString('en-IN')}</span>
             <span aria-hidden="true" data-count={counts[index]}>{counts[index].toLocaleString('en-IN')}</span>
           </strong>}
