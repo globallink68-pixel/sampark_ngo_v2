@@ -1,1 +1,40 @@
 @media(max-width:900px){body:has(.admin-overlay) .admin-sidebar{transform:translateX(0)}}
+.admin-shell .organization-form fieldset {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+  align-items: start;
+  gap: .9rem 1.2rem;
+  min-width: 0;
+}
+
+.admin-shell .organization-form label {
+  display: grid;
+  gap: .35rem;
+  margin: 0;
+}
+
+.admin-shell .organization-form :is(input, textarea) {
+  width: 100%;
+  min-width: 0;
+  padding: .55rem .65rem;
+  border: 1px solid #a9c2bc;
+  border-radius: .5rem;
+}
+.admin-shell .organization-form .organization-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .6rem;
+}
+.admin-shell .organization-form button { min-height: 44px; max-width: 100%; }
+.admin-shell .organization-form .organization-error {
+  margin: 0;
+  border-left: .25rem solid #9a3333;
+  padding: .75rem 1rem;
+  background: #fff2f2;
+  color: #772424;
+}
+.admin-shell .section form.organization-form {
+  display: grid;
+  gap: 1rem;
+  padding: clamp(.75rem, 3vw, 1.5rem);
+}

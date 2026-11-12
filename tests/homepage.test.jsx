@@ -26,6 +26,19 @@ describe('homepage publication boundaries', () => {
     expect(html).toContain('1,280');
   });
 
+  it('uses only supported numeric values from published CMS impact entries', () => {
+    const html = render(<Impact entries={[
+      {label: 'Meals Served', value: '12,345'},
+      {label: 'Students Taught', value: '0'},
+      {label: 'Trees Planted', value: '100+'},
+      {label: 'Interns Trained', value: '1,2'}
+    ]}/>);
+    expect(html).toContain('data-count="12345"');
+    expect(html).toContain('data-count="0"');
+    expect(html.match(/data-count=/g)).toHaveLength(2);
+    expect(html).not.toContain('DEMO');
+  });
+
   it('keeps the allocation bar out of production and labels the development preview', () => {
     expect(render(<Giving demo={false}/>)).not.toContain('data-allocation');
     expect(render(<Giving demo/>)).toContain('DEMO');

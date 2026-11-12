@@ -1,6 +1,6 @@
 import {RecordDraftEditor} from './record-draft-editor';
 import {formatPaise} from './lib/financial-format';
-import React,{useCallback,useEffect,useState}from'react';
+import React,{useCallback,useEffect,useRef,useState}from'react';
 import{Navigate,NavLink,useLocation,useNavigate}from'react-router-dom';
 import{AdminApiError,adminRequest}from'./lib/api';
 import{performAdminMutation}from'./lib/admin-mutation';
@@ -41,38 +41,63 @@ export function AdminMembers(){return <RecordDraftEditor collection='members'/>}
 export function AdminPrograms(){return <RecordDraftEditor collection='programs'/>}
 const organizationFields={organization:[['organization_name','NGO Name','text',160,true],['tagline','Tagline','text',255],['short_description','Short Description','textarea',1000]],contact:[['primary_email','Primary Email','email',254,true],['secondary_email','Secondary Email','email',254],['primary_phone','Primary Phone','tel',30,true],['secondary_phone','Secondary Phone','tel',30],['whatsapp_number','WhatsApp Number','tel',30]],address:[['address','Address','textarea',500],['city','City','text',120],['state','State','text',120],['postal_code','PIN Code','text',20],['google_maps_url','Google Maps URL','url',500]],social:[['facebook_url','Facebook','url',500],['instagram_url','Instagram','url',500],['youtube_url','YouTube','url',500],['linkedin_url','LinkedIn','url',500],['threads_url','Threads URL','url',500],['x_url','X (Twitter) URL','url',500]],website:[['website_url','Website URL','url',500]]};
 const emptyOrganization=Object.fromEntries(Object.values(organizationFields).flat().map(([name])=>[name,'']));
-export function AdminOrganization(){const settings=useAdminData('/api/admin/organization',{}),[form,setForm]=useState(emptyOrganization),[saving,setSaving]=useState(false),toasts=useToasts();const [draft,setDraft]=useState(null),[preview,setPreview]=useState(false),[ready,setReady]=useState(false);
 const draftRoute='/api/admin/organization/draft';
-useEffect(()=>{
- let active=true;
- const pending=adminRequest(draftRoute).catch(error=>{if(error.status===404)return null;throw error});
- Promise.all([settings.load({report:false}),pending]).then(([live,data])=>{
-  if(active){setDraft(data);setForm({...emptyOrganization,...(data?.profile??live)});setReady(true)}
- }).catch(()=>{if(active)settings.setError('Unable to load organization settings.')});
- return()=>{active=false};
-},[settings.setError]);
-const change=event=>{setPreview(false);setForm(current=>({...current,[event.target.name]:event.target.value}))};
-async function save(event){
- event.preventDefault();
- if(saving)return false;setSaving(true);settings.setError('');
- try{
-  const saved=await adminRequest(draftRoute,{method:'PUT',body:{profile:form,revision:draft?.revision}});
-  setDraft(saved);setPreview(false);toasts.show('success','Private organization draft saved.');
- }catch(reason){toasts.show('error',mutationMessage(reason,'Unable to save organization draft. Reload to check for a newer revision.'))}
- finally{setSaving(false)}
+async function loadOrganization(){
+ const draft=await adminRequest(draftRoute).catch(error=>{if(error.status===404)return null;throw error});
+ return {draft,profile:draft?.profile??await adminRequest('/api/admin/organization')};
 }
-async function resolveDraft(method){
- if(saving||!draft)return;
- setSaving(true);
- try{
-  const saved=await adminRequest(draftRoute+(method==='POST'?'/publish':''),{method,body:{revision:draft.revision}});
-  setDraft(null);setPreview(false);
-  setForm({...emptyOrganization,...(method==='POST'?saved:await adminRequest('/api/admin/organization'))});
-  toasts.show('success',method==='POST'?'Organization profile published.':'Organization draft discarded.');
- }catch(reason){toasts.show('error',mutationMessage(reason,'The draft or published profile may have changed. Reload before trying again.'))}
- finally{setSaving(false)}
-}
-const autocomplete={organization_name:'organization',tagline:'organization-title',primary_email:'email',secondary_email:'email',primary_phone:'tel',secondary_phone:'tel',whatsapp_number:'tel',address:'street-address',city:'address-level2',state:'address-level1',postal_code:'postal-code',google_maps_url:'url',facebook_url:'url',instagram_url:'url',youtube_url:'url',linkedin_url:'url',threads_url:'url',x_url:'url',website_url:'url'};const placeholder={threads_url:'https://www.threads.net/@username',x_url:'https://x.com/username'};const section=(title,fields)=><fieldset key={title}><legend>{title}</legend>{fields.map(([name,label,type,max,required])=><label key={name}>{label}{type==='textarea'?<textarea name={name} value={form[name]||''} onChange={change} maxLength={max} autoComplete={autocomplete[name]}/>:<input name={name} type={type} value={form[name]||''} onChange={change} maxLength={max} required={required} autoComplete={autocomplete[name]} placeholder={placeholder[name]}/>}</label>)}</fieldset>;return <section className="section"><AdminToasts toasts={toasts.toasts} dismiss={toasts.dismiss}/><h1>Organization Settings</h1><Nav/><form onSubmit={save}>{section('Organization',organizationFields.organization)}{section('Contact details',organizationFields.contact)}{section('Address',organizationFields.address)}{section('Social media',organizationFields.social)}{section('Website',organizationFields.website)}<LoadingButton disabled={!ready} busy={saving} busyChildren="Saving…">Save Draft</LoadingButton>{draft&&<><button type="button" disabled={saving} onClick={()=>setPreview(true)}>Preview saved profile</button><button type="button" disabled={saving} onClick={()=>resolveDraft('DELETE')}>Discard draft</button></>}{settings.error&&<p role="alert">{settings.error}</p>}</form>{preview&&draft&&<article aria-label="Private organization preview"><h2>Saved profile preview</h2><dl>{Object.values(organizationFields).flat().map(([name,label])=><React.Fragment key={name}><dt>{label}</dt><dd>{draft.profile[name]||'—'}</dd></React.Fragment>)}</dl><button disabled={saving} onClick={()=>resolveDraft('POST')}>Publish reviewed profile</button></article>}</section>}
+export function AdminOrganization(){
+ const [form,setForm]=useState(emptyOrganization);
+ const [saving,setSaving]=useState(false);
+ const [error,setError]=useState('');
+ const [conflict,setConflict]=useState(false);
+ const [draft,setDraft]=useState(null);
+ const [preview,setPreview]=useState(false);
+ const [ready,setReady]=useState(false);
+ const pending=useRef(false);
+ const toasts=useToasts();
+ function apply({draft:loaded,profile}){
+  setDraft(loaded);setForm({...emptyOrganization,...profile});setPreview(false);setConflict(false);setReady(true);
+ }
+ useEffect(()=>{
+  let active=true;
+  loadOrganization().then(result=>{if(active)apply(result)})
+   .catch(reason=>{if(active)setError(messageFor(expire(reason)))});
+  return()=>{active=false};
+ },[]);
+ const change=event=>{setPreview(false);setForm(current=>({...current,[event.target.name]:event.target.value}))};
+ async function run(action){
+  if(pending.current)return;
+  pending.current=true;setSaving(true);setError('');
+  try{await action()}
+  catch(reason){
+   if(reason.status===409)setConflict(true);
+   setError(messageFor(expire(reason)));
+  }
+  finally{pending.current=false;setSaving(false)}
+ }
+ function save(event){
+  event.preventDefault();
+  if(!ready||conflict)return;
+  return run(async()=>{
+   const saved=await adminRequest(draftRoute,{method:'PUT',body:{profile:form,revision:draft?.revision}});
+   apply({draft:saved,profile:saved.profile});
+   toasts.show('success','Private organization draft saved.');
+  });
+ }
+ function resolveDraft(method){
+  if(!draft||conflict)return;
+  return run(async()=>{
+   const saved=await adminRequest(draftRoute+(method==='POST'?'/publish':''),{method,body:{revision:draft.revision}});
+   setDraft(null);setPreview(false);
+   if(method==='POST')apply({draft:null,profile:saved});
+   else apply(await loadOrganization());
+   toasts.show('success',method==='POST'?'Organization profile published.':'Organization draft discarded.');
+  });
+ }
+const autocomplete={organization_name:'organization',tagline:'organization-title',primary_email:'email',secondary_email:'email',primary_phone:'tel',secondary_phone:'tel',whatsapp_number:'tel',address:'street-address',city:'address-level2',state:'address-level1',postal_code:'postal-code',google_maps_url:'url',facebook_url:'url',instagram_url:'url',youtube_url:'url',linkedin_url:'url',threads_url:'url',x_url:'url',website_url:'url'};const placeholder={threads_url:'https://www.threads.net/@username',x_url:'https://x.com/username'};const section=(title,fields)=><fieldset key={title} disabled={!ready||saving}><legend>{title}</legend>{fields.map(([name,label,type,max])=><label key={name}>{label}{type==='textarea'?<textarea name={name} value={form[name]||''} onChange={change} maxLength={max} autoComplete={autocomplete[name]}/>:<input name={name} type={type} value={form[name]||''} onChange={change} maxLength={max} autoComplete={autocomplete[name]} placeholder={placeholder[name]}/>}</label>)}</fieldset>;return <section className="section"><AdminToasts toasts={toasts.toasts} dismiss={toasts.dismiss}/><h1>Organization Settings</h1><Nav/><form className="organization-form" onSubmit={save} aria-busy={saving}>{section('Organization',organizationFields.organization)}{section('Contact details',organizationFields.contact)}{section('Address',organizationFields.address)}{section('Social media',organizationFields.social)}{section('Website',organizationFields.website)}<div className="organization-actions"><LoadingButton disabled={!ready||conflict} busy={saving} busyChildren="Saving…">Save Draft</LoadingButton>{draft&&<><button type="button" disabled={saving} onClick={()=>setPreview(true)}>Preview saved profile</button><button type="button" disabled={saving||conflict} onClick={()=>resolveDraft('DELETE')}>Discard draft</button></>}</div>{error&&<p className="organization-error" role="alert">{error}</p>}
+ {conflict&&<div><p>Your edits are still in the form. Copy any changes you want to keep before loading the latest saved version.</p>
+ <button type="button" disabled={saving} onClick={()=>run(async()=>apply(await loadOrganization()))}>Replace my edits with latest saved version</button></div>}</form>{preview&&draft&&<article aria-label="Private organization preview"><h2>Saved profile preview</h2><dl>{Object.values(organizationFields).flat().map(([name,label])=><React.Fragment key={name}><dt>{label}</dt><dd>{draft.profile[name]||'—'}</dd></React.Fragment>)}</dl><button disabled={saving} onClick={()=>resolveDraft('POST')}>Publish reviewed profile</button></article>}</section>}
 
 export function AdminMessages(){const[filters,setFilters]=useState({status:'',search:''}),query=new URLSearchParams(Object.entries(filters).filter(([,value])=>value)),list=useAdminRows(`/api/admin/contact-messages${query.toString()?`?${query}`:''}`),[selected,setSelected]=useState(null),interactions=useAdminRows(`/api/admin/contact-messages/${selected?.id||0}/interactions`),mutation=useCrudMutation(list.load,list.setError),change=event=>setFilters(current=>({...current,[event.target.name]:event.target.value}));async function update(event){event.preventDefault();if(!selected)return;const body=Object.fromEntries(new FormData(event.currentTarget));const ok=await mutation.run(()=>adminRequest(`/api/admin/contact-messages/${selected.id}`,{method:'PUT',body}),{success:'Enquiry status updated successfully.',failure:'Unable to update enquiry. Please check the details and try again.',refreshFailure:'Enquiry was updated, but the list could not be refreshed.',busyLabel:'Saving…'});if(ok)setSelected(current=>({...current,...body}))}async function addInteraction(event){event.preventDefault();if(!selected)return;const body=Object.fromEntries(new FormData(event.currentTarget));const ok=await mutation.run(()=>adminRequest(`/api/admin/contact-messages/${selected.id}/interactions`,{method:'POST',body}),{success:'Interaction added successfully.',failure:'Unable to add interaction. Please check the details and try again.',refreshFailure:'Interaction was saved, but the list could not be refreshed.',busyLabel:'Saving interaction…'});if(ok){event.currentTarget.reset();interactions.load().catch(()=>{})}}return <section className="section"><AdminToasts toasts={mutation.toasts} dismiss={mutation.dismiss}/><h1>Enquiries</h1><Nav/><form><label>Status<select name="status" value={filters.status} onChange={change}><option value="">All statuses</option>{['new','contacted','follow_up','resolved','closed'].map(status=><option key={status} value={status}>{status.replace('_',' ')}</option>)}</select></label><label>Search<input name="search" value={filters.search} onChange={change} maxLength="120"/></label></form>{list.error&&<p role="alert">{list.error}</p>}{list.rows.map(row=><article className="message" key={row.id}><button onClick={()=>setSelected(row)}><strong>{row.name}</strong></button><p>{row.mobile} · {row.email}</p><p>{row.subject} · <span className="tag">{row.status||'new'}</span> · {new Date(row.created_at).toLocaleString()}</p></article>)}{selected&&<section className="section"><h2>{selected.subject}</h2><p>{selected.name} · {selected.email} · {selected.mobile}</p><p>{[selected.address,selected.city,selected.state,selected.postal_code].filter(Boolean).join(', ')}</p><p>{selected.message}</p><p><a href={`tel:${selected.mobile}`}>Call</a> · <a href={`mailto:${selected.email}`}>Email</a>{selected.mobile&&<> · <a href={`https://wa.me/${selected.mobile.replace(/\D/g,'')}`} target="_blank" rel="noopener noreferrer">WhatsApp</a></>}</p><form onSubmit={update}><label>Status<select name="status" defaultValue={selected.status||'new'}>{['new','contacted','follow_up','resolved','closed'].map(status=><option key={status} value={status}>{status.replace('_',' ')}</option>)}</select></label><label>Admin notes<textarea name="admin_notes" defaultValue={selected.admin_notes||''} maxLength="5000"/></label><LoadingButton busy={!!mutation.busy} busyChildren={mutation.busy}>Save status</LoadingButton></form><form onSubmit={addInteraction}><label>Interaction type<select name="interaction_type" defaultValue="phone">{['phone','email','whatsapp','meeting','note','other'].map(type=><option key={type}>{type}</option>)}</select></label><label>Interaction note<textarea required name="note" maxLength="5000"/></label><label>Interaction date/time<input required type="datetime-local" name="interaction_at" defaultValue={new Date().toISOString().slice(0,16)}/></label><LoadingButton busy={!!mutation.busy} busyChildren={mutation.busy}>Add interaction</LoadingButton></form>{interactions.rows.map(item=><article key={item.id}><strong>{item.interaction_type}</strong><p>{item.note}</p><small>{item.interaction_at}</small></article>)}</section>}</section>}
 export function AdminDonations(){const[filters,setFilters]=useState({status:'',search:'',from:'',to:''});const query=new URLSearchParams(Object.entries(filters).filter(([,value])=>value));const suffix=query.toString()?`?${query}`:'';const list=useAdminRows(`/api/admin/donations${suffix}`),summary=useAdminData(`/api/admin/donations/summary${suffix}`,{});const change=event=>setFilters(current=>({...current,[event.target.name]:event.target.value}));const rupees=formatPaise;return <section className="section"><h1>Donations</h1><Nav/><form><label>Status<select name="status" value={filters.status} onChange={change}><option value="">All statuses</option>{['created','paid','failed'].map(item=><option key={item}>{item}</option>)}</select></label><label>Donor search<input name="search" value={filters.search} onChange={change} maxLength="120"/></label><label>From<input name="from" type="date" value={filters.from} onChange={change}/></label><label>To<input name="to" type="date" value={filters.to} onChange={change}/></label></form>{(list.error||summary.error)&&<p role="alert">{list.error||summary.error}</p>}<div className="cards"><article><h3>Received</h3><p>{rupees(summary.data.paid_amount)} · {summary.data.paid_count||0} paid</p></article><article><h3>Pending</h3><p>{summary.data.created_count||0}</p></article><article><h3>Failed</h3><p>{summary.data.failed_count||0}</p></article></div>{list.rows.map(row=><article className="message" key={row.razorpay_order_id}><strong>{row.donor_name}</strong><p>{row.donor_email} · {row.donor_mobile}</p><p>{rupees(row.amount)} {row.currency} · {row.status} · {new Date(row.created_at).toLocaleString()}</p><small>Order: {row.razorpay_order_id} {row.razorpay_payment_id?` · Payment: ${row.razorpay_payment_id}`:''}</small></article>)}</section>}

@@ -1,4 +1,4 @@
-import React, {useEffect, useRef} from 'react';
+import React, {useEffect, useRef, useState} from 'react';
 import {Link} from 'react-router-dom';
 import {gsap} from 'gsap';
 import {ScrollTrigger} from 'gsap/ScrollTrigger';
@@ -50,10 +50,23 @@ const impact = [
   ['Interns Trained', '✦', 'violet', 48]
 ];
 
-export function Impact({demo = import.meta.env.DEV}) {
+export function Impact({demo = false, entries = []}) {
+  const [preview, setPreview] = useState(false);
+  const verified = impact.map(([label]) => {
+    const matches = entries.filter(entry => entry.label.trim().toLowerCase() === label.toLowerCase());
+    if (matches.length !== 1) return null;
+    const raw = matches[0].value.trim();
+    const value = Number(raw.replaceAll(',', ''));
+    const canonical = /^\d+$/.test(raw) || ['en-IN','en-US'].some(locale => value.toLocaleString(locale) === raw);
+    return canonical && Number.isSafeInteger(value) && value >= 0 ? value : null;
+  });
+  const hasVerified = verified.some(value => value !== null);
+  const showDemo = !hasVerified && (demo || preview);
+  const counts = showDemo ? impact.map(([, , , value]) => value) : verified;
+  const countKey = counts.join('/');
   const root = useRef(null);
   useEffect(() => {
-    if (!demo) return;
+    if (!root.current.querySelector('[data-count]')) return;
     gsap.registerPlugin(ScrollTrigger);
     const motion = gsap.matchMedia(root.current);
     const played = new WeakSet();
@@ -85,18 +98,21 @@ export function Impact({demo = import.meta.env.DEV}) {
 
     });
     return () => motion.revert();
-  }, [demo]);
+  }, [countKey]);
 
   return <section ref={root} className="sampark-section sampark-impact" aria-labelledby="impact-heading">
     <div className="container">
       <h2 id="impact-heading">Our <em>impact.</em></h2>
-      <p>{demo ? 'DEMO · Sample figures for animation preview only.' : 'Impact data being updated'}</p>
+      {showDemo && <p>DEMO · Sample figures for animation preview only.</p>}
+      {!showDemo && !hasVerified && <p>Impact data being updated</p>}
+      {!hasVerified && !demo && <button type="button" className="sampark-pill" aria-pressed={preview}
+        onClick={() => setPreview(value => !value)}>{preview ? 'Close demo preview' : 'Preview counter animation (demo)'}</button>}
       <div className="sampark-impact-grid" data-reveal-group>
-        {impact.map(([label, icon, tone, value]) => <article key={label} className={`sampark-card tone-${tone}`}>
+        {impact.map(([label, icon, tone], index) => <article key={label} className={`sampark-card tone-${tone}`}>
           <span className="sampark-icon" aria-hidden="true">{icon}</span>
-          {demo && <strong className="sampark-count">
-            <span className="visually-hidden">{value.toLocaleString('en-IN')}</span>
-            <span aria-hidden="true" data-count={value}>{value.toLocaleString('en-IN')}</span>
+          {counts[index] !== null && <strong className="sampark-count" key={counts[index]}>
+            <span className="visually-hidden">{counts[index].toLocaleString('en-IN')}</span>
+            <span aria-hidden="true" data-count={counts[index]}>{counts[index].toLocaleString('en-IN')}</span>
           </strong>}
           <h3>{label}</h3>
         </article>)}

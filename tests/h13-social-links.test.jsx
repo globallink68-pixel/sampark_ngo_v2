@@ -3,7 +3,19 @@ import{afterEach,describe,it,expect,vi}from'vitest';
 import React from'react';
 import{createRoot}from'react-dom/client';
 import{AdminOrganization}from'../src/admin.jsx';
-import{socialLinks}from'../src/lib/organization-links.js';
+import{externalUrl,socialLinks,whatsappUrl}from'../src/lib/organization-links.js';
+
+it('normalizes published Indian mobile numbers and excludes malformed destinations',()=>{
+  for(const number of ['98765 43210','+91 (98765) 43210','0091-9876543210','919876543210']){
+    expect(whatsappUrl(number)).toBe('https://wa.me/919876543210');
+  }
+  for(const number of ['','123','+91 9876543210 ext. 12','00910000000000','https://wa.me/919876543210']){
+    expect(whatsappUrl(number)).toBe('');
+  }
+  for(const url of ['https://','javascript:alert(1)','https://social.example@other.example','https:///other.example']){
+    expect(externalUrl(url)).toBe('');
+  }
+});
 
 const profile={organization_name:'Sampark Academy',tagline:'Community and possibility',short_description:'Learning and care.',primary_email:'hello@sampark.example',primary_phone:'+91 9876543210',threads_url:'https://www.threads.net/@sampark',x_url:'https://x.com/sampark'};
 

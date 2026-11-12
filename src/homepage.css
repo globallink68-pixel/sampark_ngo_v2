@@ -162,6 +162,8 @@
   padding: .8rem;
 }
 .sampark-home .sampark-impact { background: linear-gradient(135deg, var(--home-mint), var(--home-cream)); }
+.sampark-home .sampark-impact .sampark-pill { cursor: pointer; }
+.sampark-home .sampark-impact .sampark-pill:focus-visible { outline: 3px solid #2862bf; outline-offset: 4px; }
 .sampark-home .sampark-giving { background: var(--home-cream); }
 .sampark-home .sampark-allocation-bar {
   display: flex;

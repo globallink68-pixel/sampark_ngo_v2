@@ -7,7 +7,8 @@ import fs from'node:fs/promises';
 import path from'node:path';
 
 const execute=vi.fn();const mockExecute=sessionDatabase(execute);
-vi.mock('../server/config/db.js',()=>({db:()=>({execute:mockExecute})}));
+const getConnection=vi.fn();
+vi.mock('../server/config/db.js',()=>({db:()=>({execute:mockExecute,getConnection})}));
 process.env.SESSION_SECRET='h8-test-session-secret-at-least-32-characters';
 const{createApp}=await import('../server/app.js');
 let app,root;
@@ -18,6 +19,46 @@ const login=async()=>{execute.mockResolvedValueOnce([[{id:1,email:'admin@test.or
 const allow=()=>execute.mockResolvedValueOnce([[{id:1}]]);
 
 describe('H8 organization settings',()=>{
+  it('saves a partial first draft without publishing and rejects a stale revision',async()=>{
+    const route='/api/admin/organization/draft', cookie=await login();
+    let draft;
+    const connection={
+      beginTransaction:vi.fn(),commit:vi.fn(),rollback:vi.fn(),release:vi.fn(),
+      execute:vi.fn(async(sql,args)=>{
+        if(sql.startsWith('SELECT title,body'))return [draft?[draft]:[]];
+        if(sql.includes('FROM organization_settings'))return [[]];
+        if(sql.startsWith('INSERT INTO content_drafts'))draft={title:args[1],body:args[2]};
+        if(sql.startsWith('UPDATE content_drafts'))draft={title:args[0],body:args[1]};
+        return [{}];
+      })
+    };
+    getConnection.mockResolvedValue(connection);
+    const put=body=>{allow();return request(app).put(route).set('Cookie',cookie).send(body)};
+    const saved=await put({profile:{tagline:'First draft'}});
+    expect(saved.status).toBe(200);
+    allow();execute.mockResolvedValueOnce([[draft]]);
+    expect((await request(app).get(route).set('Cookie',cookie)).body).toEqual(saved.body);
+    execute.mockResolvedValueOnce([[]]);
+    expect((await request(app).get('/api/organization')).body).toEqual({});
+    const updated=await put({revision:saved.body.revision,profile:{tagline:'Newer draft'}});
+    expect(updated.status).toBe(200);
+    expect(updated.body.revision).not.toBe(saved.body.revision);
+    expect((await put({revision:saved.body.revision,profile:{tagline:'Stale edit'}})).status).toBe(409);
+    expect((await put({revision:updated.body.revision,profile:{primary_email:'invalid'}})).status).toBe(400);
+    allow();
+    expect((await request(app).post(route+'/publish').set('Cookie',cookie).send({revision:updated.body.revision})).status).toBe(400);
+    expect(JSON.parse(draft.body).profile.tagline).toBe('Newer draft');
+  });
+  it('returns a sanitized 500 for a draft persistence failure',async()=>{
+    const cookie=await login();
+    allow();
+    getConnection.mockRejectedValueOnce(new Error('private connection details'));
+    const response=await request(app).put('/api/admin/organization/draft')
+      .set('Cookie',cookie).send({profile:{tagline:'Pending'}});
+    expect(response.status).toBe(500);
+    expect(response.body.error).toMatch(/could not persist/);
+    expect(response.text).not.toContain('private connection details');
+  });
   it('returns a public organization profile without internal fields and handles an empty singleton',async()=>{execute.mockResolvedValueOnce([[{...organization,internal_note:'do not expose',password_hash:'never'}]]);const response=await request(app).get('/api/organization');expect(response.status).toBe(200);expect(response.body).toMatchObject({organization_name:'Sampark Academy',primary_email:organization.primary_email,threads_url:organization.threads_url,x_url:organization.x_url});expect(response.body).not.toHaveProperty('internal_note');expect(response.body).not.toHaveProperty('password_hash');expect(execute.mock.calls[0][0]).not.toMatch(/password|secret|internal/i);execute.mockResolvedValueOnce([[]]);expect((await request(app).get('/api/organization')).body).toEqual({})});
   it('rejects anonymous administration reads and updates',async()=>{expect((await request(app).get('/api/admin/organization')).status).toBe(401);expect((await request(app).put('/api/admin/organization').send(organization)).status).toBe(401)});
   it('allows an authenticated admin to read existing organization settings',async()=>{const cookie=await login();allow();execute.mockResolvedValueOnce([[organization]]);expect((await request(app).get('/api/admin/organization').set('Cookie',cookie)).body).toEqual(organization)});
