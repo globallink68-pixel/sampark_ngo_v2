@@ -22,9 +22,23 @@ describe('homepage publication boundaries', () => {
 
   it('labels demonstration figures and preserves the final accessible values', () => {
     const html = render(<Impact demo/>);
-    expect(html.match(/Sample figures/g)).toHaveLength(4);
+    expect(html).toContain('Demo animation — sample figures, not actual NGO impact');
     expect(html.match(/data-count=/g)).toHaveLength(4);
     expect(html).toContain('1,280');
+  });
+
+  it('renders noninteractive footer badges only for published and current certificates', () => {
+    const certificates = [[2,'NGO Registration Certificate'],[3,'Registration'],[5,'80G Certificate'],[6,'12AB Certificate']]
+      .map(([id,title])=>({id,title,image_path:`/api/verified-certificates/${id}/image`}));
+    const taxCertificates = {'80g':{id:5,validUntil:'2027-01-01'},'12a':{id:6,validUntil:'2027-01-01'}};
+    const html = render(<RegistrationBadges footer certificates={certificates} taxCertificates={taxCertificates} today="2026-11-12"/>);
+    expect(html).toContain('Govt Registration Trust (Non profit)');
+    expect(html).toContain('80G — Tax Deduction Eligibility');
+    expect(html).toContain('12A Registration');
+    expect(html).not.toMatch(/<a\s|<button|50%/);
+    const trustOnly = render(<RegistrationBadges footer certificates={certificates.slice(0,2)} taxCertificates={taxCertificates} today="2026-11-12"/>);
+    expect(trustOnly).toContain('Govt Registration Trust (Non profit)');
+    expect(trustOnly).not.toMatch(/80G|12A/);
   });
 
   it('requires both reviewed trust records and a published, current certificate for a tax badge', () => {
@@ -60,7 +74,7 @@ describe('homepage publication boundaries', () => {
   });
 
   it('uses only supported numeric values from published CMS impact entries', () => {
-    const html = render(<Impact entries={[
+    const html = render(<Impact demo entries={[
       {label: 'Meals Served', value: '12,345'},
       {label: 'Students Taught', value: '0'},
       {label: 'Trees Planted', value: '100+'},
@@ -69,7 +83,7 @@ describe('homepage publication boundaries', () => {
     expect(html).toContain('data-count="12345"');
     expect(html).toContain('data-count="0"');
     expect(html.match(/data-count=/g)).toHaveLength(2);
-    expect(html).not.toContain('DEMO');
+    expect(html).not.toContain('Demo animation');
   });
 
   it('keeps the allocation bar out of production and labels the development preview', () => {

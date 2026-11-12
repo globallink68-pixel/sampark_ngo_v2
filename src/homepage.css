@@ -164,7 +164,6 @@
 .sampark-home .sampark-impact { background: linear-gradient(135deg, var(--home-mint), var(--home-cream)); }
 .sampark-home .sampark-impact-grid article:focus-visible { outline: 3px solid #2862bf; outline-offset: 3px; }
 .sampark-home .sampark-impact-grid .sampark-count { overflow-wrap: anywhere; }
-.sampark-home .sampark-impact-grid small { display: block; margin-top: .35rem; }
 .sampark-home .sampark-giving { background: var(--home-cream); }
 .sampark-home .sampark-allocation-bar {
   display: flex;
@@ -225,6 +224,34 @@
 }
 .sampark-home .sampark-registration-badges a:hover { background: #e1f8ed; }
 .sampark-home .sampark-registration-badges svg { width: 1.15rem; height: 1.15rem; flex: none; }
+
+.public-view footer .sampark-footer-registration {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .45rem;
+  margin: 0 0 1.25rem;
+  padding: 0;
+  list-style: none;
+}
+.public-view footer .sampark-footer-registration li {
+  display: inline-flex;
+  align-items: center;
+  gap: .45rem;
+  padding: .4rem .7rem;
+  border: 1px solid #4c5d74;
+  border-radius: 2rem;
+  color: #f2f6ff;
+  font-size: .83rem;
+  font-weight: 700;
+}
+.public-view footer .sampark-footer-registration svg {
+  width: 1.15rem;
+  height: 1.15rem;
+  flex: none;
+  color: #8ce7bc;
+}
+.public-view footer .sampark-footer-registration [data-registration="tax"] svg { color: #f5cd77; }
+.public-view footer .sampark-footer-registration [data-registration="certificate"] svg { color: #a8caff; }
 
 .sampark-home .sampark-reviews {
   background: linear-gradient(155deg, #f0fbf5, #fffaf0);

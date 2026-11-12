@@ -12,9 +12,9 @@ vi.mock('gsap', () => ({gsap: {registerPlugin: vi.fn(), matchMedia: vi.fn(), to:
 vi.mock('gsap/ScrollTrigger', () => ({ScrollTrigger: {create: vi.fn()}}));
 
 let host, root, revert, restart;
-function setupMotion(matches = true) {
+function setupMotion(matches = true, touch = false) {
   const cleanups = [];
-  vi.stubGlobal('matchMedia', vi.fn(() => ({matches: false})));
+  vi.stubGlobal('matchMedia', vi.fn(() => ({matches: touch})));
   revert = vi.fn(() => cleanups.forEach(cleanup => cleanup()));
   restart = vi.fn();
   gsap.to.mockReturnValue({restart});
@@ -95,6 +95,24 @@ it('displays final labeled sample values without creating tweens in reduced moti
   setupMotion(false);
   act(() => root.render(<Impact demo/>));
   expect([...host.querySelectorAll('[data-count]')].map(node => node.textContent)).toEqual(['1,280','160','240','48']);
-  expect(host.querySelectorAll('article small')).toHaveLength(4);
+  expect(host.textContent).toContain('Demo animation — sample figures, not actual NGO impact');
   expect(gsap.to).not.toHaveBeenCalled();
+});
+
+it('initializes four independent demo targets and triggers keyboard focus and touch viewport entry', () => {
+  setupMotion(true, true);
+  act(() => root.render(<Impact demo/>));
+  const [first, second] = host.querySelectorAll('article');
+  vi.spyOn(first,'matches').mockImplementation(selector=>selector===':focus-visible');
+  first.dispatchEvent(new Event('focus'));
+  expect(first.querySelector('[data-count]').textContent).toBe('0');
+  expect(second.querySelector('[data-count]').textContent).toBe('160');
+  expect(ScrollTrigger.create).toHaveBeenCalledTimes(4);
+  const trigger=ScrollTrigger.create.mock.calls[1][0];
+  expect(trigger.trigger).toBe(second);
+  expect(trigger.once).toBe(true);
+  trigger.onEnter();
+  expect(second.querySelector('[data-count]').textContent).toBe('0');
+  expect(restart).toHaveBeenCalledTimes(2);
+  expect(gsap.to).toHaveBeenCalledTimes(4);
 });

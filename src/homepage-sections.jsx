@@ -106,10 +106,11 @@ export function Impact({demo = false, entries = []}) {
   return <section ref={root} className="sampark-section sampark-impact" aria-labelledby="impact-heading">
     <div className="container">
       <h2 id="impact-heading">Our <em>impact.</em></h2>
-      {!showSamples && !hasVerified && <p>Impact data being updated</p>}
+      {showSamples ? <p id="impact-demo-label"><strong>Demo animation — sample figures, not actual NGO impact</strong></p>
+        : !hasVerified && <p>Impact data being updated</p>}
       <div className="sampark-impact-grid" data-reveal-group>
         {impact.map(([label, icon, tone], index) => <article key={label} className={`sampark-card tone-${tone}`}
-          tabIndex={counts[index] === null ? undefined : 0}>
+          tabIndex={counts[index] === null ? undefined : 0} aria-describedby={showSamples ? 'impact-demo-label' : undefined}>
           <span className="sampark-icon" aria-hidden="true">{icon}</span>
           {counts[index] === null ? <strong className="sampark-count" aria-label="Figure unavailable">—</strong> :
             <strong className="sampark-count" key={counts[index]}>
@@ -117,7 +118,6 @@ export function Impact({demo = false, entries = []}) {
               <span aria-hidden="true" data-count={counts[index]}>{counts[index].toLocaleString('en-IN')}</span>
             </strong>}
           <h3>{label}</h3>
-          {showSamples && <small>Sample figures</small>}
         </article>)}
       </div>
     </div>
@@ -128,7 +128,7 @@ const indiaDate = new Intl.DateTimeFormat('en-CA', {
   timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit'
 });
 
-export function RegistrationBadges({certificates = [], taxCertificates = {}, today = indiaDate.format(new Date())}) {
+export function RegistrationBadges({certificates = [], taxCertificates = {}, footer = false, today = indiaDate.format(new Date())}) {
   const published = (id, title) => certificates.some(record =>
     Number(record.id) === id && title.test(record.title) && record.image_path === `/api/verified-certificates/${id}/image`);
   // These two records were reviewed together: the Darpan profile identifies the
@@ -139,16 +139,18 @@ export function RegistrationBadges({certificates = [], taxCertificates = {}, tod
     return certificate?.validUntil >= today && published(certificate.id, title);
   };
   const badges = [
-    [trust, 'Govt. Registered Trust (Non-Profit)', 'M12 22s7-3 7-10V5l-7-3-7 3v7c0 7 7 10 7 10ZM9 12l2 2 4-4'],
-    [tax('80g', /\b80G\b/i), '80G — Tax Deduction Eligibility', 'M7 17 17 7M8 8h.01M16 16h.01M12 2l3 2 4 1 1 4 2 3-2 3-1 4-4 1-3 2-3-2-4-1-1-4-2-3 2-3 1-4 4-1Z'],
-    [tax('12a', /\b12A(?:B)?\b/i), '12A — Income Tax Registration', 'M14 2H5v20h14V7Zm0 0v5h5M8 14l3 3 5-5']
+    [trust, 'trust', 'Govt. Registered Trust (Non-Profit)', 'Govt Registration Trust (Non profit)', 'M12 22s7-3 7-10V5l-7-3-7 3v7c0 7 7 10 7 10ZM9 12l2 2 4-4'],
+    [tax('80g', /\b80G\b/i), 'tax', '80G — Tax Deduction Eligibility', '80G — Tax Deduction Eligibility', 'M7 17 17 7M8 8h.01M16 16h.01M12 2l3 2 4 1 1 4 2 3-2 3-1 4-4 1-3 2-3-2-4-1-1-4-2-3 2-3 1-4 4-1Z'],
+    [tax('12a', /\b12A(?:B)?\b/i), 'certificate', '12A — Income Tax Registration', '12A Registration', 'M14 2H5v20h14V7Zm0 0v5h5M8 14l3 3 5-5']
   ].filter(([visible]) => visible);
   if (!badges.length) return null;
-  return <ul className="sampark-registration-badges" aria-label="Published registration information">
-    {badges.map(([,label,mark]) => <li key={label}><Link to="/transparency#registration">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={mark}/></svg>
-      {label}
-    </Link></li>)}
+  return <ul className={footer ? 'sampark-footer-registration' : 'sampark-registration-badges'} aria-label="Published registration information">
+    {badges.map(([,kind,label,footerLabel,mark]) => {
+      const icon = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={mark}/></svg>;
+      return <li key={kind} data-registration={kind}>
+        {footer ? <>{icon}{footerLabel}</> : <Link to="/transparency#registration">{icon}{label}</Link>}
+      </li>;
+    })}
   </ul>;
 }
 
