@@ -1,6 +1,6 @@
 import {homeSections,parseSiteSettings,siteSettingsSlug} from './lib/site-settings';
 import {applyPageMetadata} from './lib/page-metadata';
-import {Campaigns,Giving,HomepagePresentation,Impact,PhotoMoments,Support} from './homepage-sections';
+import {Campaigns,CommunityReviews,Giving,HomepagePresentation,Impact,PhotoMoments,RegistrationBadges,Support} from './homepage-sections';
 import {contentKind,contentPath} from './lib/content-routes';
 import React,{useEffect,useRef,useState} from 'react';
 import {Link,NavLink,Route,Routes,useLocation,useParams} from 'react-router-dom';
@@ -36,13 +36,11 @@ function HomeLayout({settings,children}){
   </section>;
  }
  elements.impact=<Impact entries={settings.impact}/>;
- elements.testimonials=settings.testimonials?.length?<section className="section container sampark-reviews"><h2>What people say</h2><div className="learning-grid">
-  {settings.testimonials.map(({quote,name},index)=><figure className="learning-card" key={index}><blockquote>{quote}</blockquote><figcaption>{name}</figcaption></figure>)}
- </div></section>:null;
+ elements.testimonials=<CommunityReviews testimonials={settings.testimonials} reviewUrl={settings.googleReviewsUrl}/>;
  elements.faq=faq.length?<section className="section container"><h2>Frequently asked questions</h2>
   {faq.map(({question,answer},index)=><details key={index} className="site-faq"><summary>{question}</summary><p className="preserve-lines">{answer}</p></details>)}
  </section>:null;
- const order=settings.home??['hero','introduction','mission','programmes','gallery','impact','transparency','testimonials','volunteer','donation','faq'];
+ const order=settings.home??['hero','introduction','mission','programmes','gallery','impact','transparency','volunteer','donation','faq','testimonials'];
  const campaignAnchor=order.includes('programmes')?'programmes':'hero';
  return <HomepagePresentation>{order.map(key=><React.Fragment key={key}>
   {elements[key]}{key===campaignAnchor&&<Campaigns/>}
@@ -79,6 +77,7 @@ function Heading({title,text,eyebrow='SAMPARK SKILL ACADEMY'}){
 }
 function Content({slug,fallback}){const {rows}=useData('/api/content',true);const record=rows.find(r=>r.slug===slug);return <div className="prose preserve-lines">{record?.body||fallback}</div>}
 export function Home(){
+ const {rows:certificates}=useData('/api/verified-certificates',true);
  const {rows:org}=useData('/api/organization');
  const {rows:images}=useData('/api/site-images');
  const {rows:photos}=useData('/api/gallery',true);
@@ -100,6 +99,7 @@ export function Home(){
       <Link to="/about" className="sampark-pill sampark-secondary">About Sampark ↗</Link>
       {whatsapp&&<a className="sampark-pill sampark-secondary" href={whatsapp} target="_blank" rel="noopener noreferrer">Chat on WhatsApp ↗</a>}
      </div>
+     <RegistrationBadges certificates={certificates} taxCertificates={settings.taxCertificates}/>
     </div>
     <figure className="sampark-hero-art">
      <img src={images?.hero?publicImageUrl(images.hero):PHOTO} alt={images?.hero?'Sampark Skill Academy':'Illustrative community photograph'} width="960" height="768" fetchPriority="high"/>

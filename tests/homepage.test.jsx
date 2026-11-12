@@ -3,7 +3,8 @@ import React from 'react';
 import {renderToStaticMarkup} from 'react-dom/server';
 import {MemoryRouter} from 'react-router-dom';
 import {describe, expect, it} from 'vitest';
-import {Campaigns, Giving, Impact, PhotoMoments} from '../src/homepage-sections';
+import {Campaigns, CommunityReviews, Giving, Impact, PhotoMoments, RegistrationBadges} from '../src/homepage-sections';
+import {parseSiteSettings} from '../src/lib/site-settings';
 
 function render(element) {
   return renderToStaticMarkup(<MemoryRouter>{element}</MemoryRouter>);
@@ -21,9 +22,41 @@ describe('homepage publication boundaries', () => {
 
   it('labels demonstration figures and preserves the final accessible values', () => {
     const html = render(<Impact demo/>);
-    expect(html).toContain('DEMO');
+    expect(html.match(/Sample figures/g)).toHaveLength(4);
     expect(html.match(/data-count=/g)).toHaveLength(4);
     expect(html).toContain('1,280');
+  });
+
+  it('requires both reviewed trust records and a published, current certificate for a tax badge', () => {
+    const certificate = (id, title) => ({id, title, image_path: `/api/verified-certificates/${id}/image`});
+    const certificates = [certificate(2,'NGO Registration Certificate'), certificate(3,'Registration'), certificate(5,'80G Certificate')];
+    expect(render(<RegistrationBadges certificates={certificates.slice(0,1)}/>)).toBe('');
+    const html = render(<RegistrationBadges certificates={certificates} today="2026-11-12" taxCertificates={{
+      '80g':{id:5,validUntil:'2026-11-12'}, '12a':{id:6,validUntil:'2026-11-11'}
+    }}/>);
+    expect(html).toContain('Govt. Registered Trust');
+    expect(html).toContain('80G — Tax Deduction Eligibility');
+    expect(html).not.toContain('12A');
+    expect(render(<RegistrationBadges certificates={certificates} today="2026-11-13"
+      taxCertificates={{'80g':{id:5,validUntil:'2026-11-12'}}}/>)).not.toContain('80G');
+  });
+
+  it('labels sample review cards and renders published testimonials as text with a validated Google URL', () => {
+    const sample = render(<CommunityReviews reviewUrl="https://www.google.com.evil/maps/place/fixture"/>);
+    expect(sample).toContain('Sample testimonials — for layout preview only');
+    expect(sample.match(/sampark-review-card/g)).toHaveLength(3);
+    expect(sample).not.toContain('Read Reviews on Google');
+    const googleReviewsUrl = 'https://www.google.com/maps/place/Fixture/';
+    const settings = parseSiteSettings(JSON.stringify({
+      testimonials:[{name:'Approved reviewer', quote:'<img src=x>'}],googleReviewsUrl
+    }));
+    const html = render(<CommunityReviews testimonials={settings.testimonials} reviewUrl={settings.googleReviewsUrl}/>);
+    expect(html).toContain('&lt;img src=x&gt;');
+    expect(html).toContain('Approved reviewer');
+    expect(html).toContain(`href="${googleReviewsUrl}"`);
+    expect(html).not.toContain('Sample testimonials');
+    expect(parseSiteSettings(JSON.stringify({googleReviewsUrl:'javascript:alert(1)'}))).toBeNull();
+    expect(parseSiteSettings(JSON.stringify({googleReviewsUrl:'https://www.google.com/maps/place/../../url'}))).toBeNull();
   });
 
   it('uses only supported numeric values from published CMS impact entries', () => {

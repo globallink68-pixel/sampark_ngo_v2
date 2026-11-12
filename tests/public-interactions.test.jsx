@@ -11,12 +11,13 @@ import {FloatingWhatsApp, FooterSocialLinks} from '../src/public-social';
 vi.mock('gsap', () => ({gsap: {registerPlugin: vi.fn(), matchMedia: vi.fn(), to: vi.fn()}}));
 vi.mock('gsap/ScrollTrigger', () => ({ScrollTrigger: {create: vi.fn()}}));
 
-let host, root, revert, play;
+let host, root, revert, restart;
 function setupMotion(matches = true) {
   const cleanups = [];
+  vi.stubGlobal('matchMedia', vi.fn(() => ({matches: false})));
   revert = vi.fn(() => cleanups.forEach(cleanup => cleanup()));
-  play = vi.fn();
-  gsap.to.mockReturnValue({play});
+  restart = vi.fn();
+  gsap.to.mockReturnValue({restart});
   gsap.matchMedia.mockImplementation(scope => ({
     revert,
     add(query, setup) {
@@ -65,36 +66,35 @@ it('renders labeled icons only for valid published profiles', () => {
   expect(markup).not.toMatch(/javascript|Facebook|Twitter/);
 });
 
-it('activates four labeled demo counters and reverts them on close', () => {
+it('keeps the preview control and sample numbers out of the default view', () => {
   setupMotion();
   act(() => root.render(<Impact/>));
   expect(host.querySelectorAll('[data-count]')).toHaveLength(0);
-  act(() => host.querySelector('button').click());
-  expect(host.textContent).toContain('DEMO · Sample figures');
-  expect(host.querySelectorAll('[data-count]')).toHaveLength(4);
-  expect(ScrollTrigger.create).toHaveBeenCalledTimes(4);
-  act(() => host.querySelector('button').click());
-  expect(host.querySelectorAll('[data-count]')).toHaveLength(0);
-  expect(revert).toHaveBeenCalledOnce();
+  expect(host.querySelector('button')).toBeNull();
+  expect(host.textContent).toContain('Impact data being updated');
 });
 
-it('triggers a verified count once and reverts its animation on unmount', () => {
+it('restarts one tween per card independently on repeated pointer entry and cleans up', () => {
   setupMotion();
-  act(() => root.render(<Impact entries={[{label: 'Meals Served', value: '1,234'}]}/>));
-  expect(gsap.to).toHaveBeenCalledWith({value: 0}, expect.objectContaining({value: 1234, duration: 1.6}));
-  const trigger = ScrollTrigger.create.mock.calls[0][0];
-  trigger.onEnter();
-  trigger.onEnter();
-  expect(trigger.trigger.textContent).toBe('0');
-  expect(play).toHaveBeenCalledOnce();
-  act(() => root.render(null));
-  expect(revert).toHaveBeenCalledOnce();
-});
-
-it('displays final demo values without creating triggers in reduced motion', () => {
-  setupMotion(false);
-  act(() => root.render(<Impact/>));
-  act(() => host.querySelector('button').click());
-  expect([...host.querySelectorAll('[data-count]')].map(node => node.textContent)).toEqual(['1,280','160','240','48']);
+  act(() => root.render(<Impact entries={[{label: 'Meals Served', value: '1,234'}, {label: 'Students Taught', value: '90'}]}/>));
+  const [first, second] = host.querySelectorAll('article');
+  first.dispatchEvent(new Event('pointerenter'));
+  first.dispatchEvent(new Event('pointerenter'));
+  expect(first.querySelector('[data-count]').textContent).toBe('0');
+  expect(second.querySelector('[data-count]').textContent).toBe('90');
+  expect(restart).toHaveBeenCalledTimes(2);
+  expect(gsap.to).toHaveBeenCalledTimes(2);
   expect(ScrollTrigger.create).not.toHaveBeenCalled();
+  act(() => root.render(null));
+  first.dispatchEvent(new Event('pointerenter'));
+  expect(restart).toHaveBeenCalledTimes(2);
+  expect(revert).toHaveBeenCalledOnce();
+});
+
+it('displays final labeled sample values without creating tweens in reduced motion', () => {
+  setupMotion(false);
+  act(() => root.render(<Impact demo/>));
+  expect([...host.querySelectorAll('[data-count]')].map(node => node.textContent)).toEqual(['1,280','160','240','48']);
+  expect(host.querySelectorAll('article small')).toHaveLength(4);
+  expect(gsap.to).not.toHaveBeenCalled();
 });
