@@ -32,13 +32,21 @@ describe('homepage publication boundaries', () => {
       .map(([id,title])=>({id,title,image_path:`/api/verified-certificates/${id}/image`}));
     const taxCertificates = {'80g':{id:5,validUntil:'2027-01-01'},'12a':{id:6,validUntil:'2027-01-01'}};
     const html = render(<RegistrationBadges footer certificates={certificates} taxCertificates={taxCertificates} today="2026-11-12"/>);
-    expect(html).toContain('Govt Registration Trust (Non profit)');
+    expect(html).toContain('Govt Registered Trust (Non-Profit)');
     expect(html).toContain('80G — Tax Deduction Eligibility');
-    expect(html).toContain('12A Registration');
+    expect(html).toContain('12A Registered');
+    expect(html).toContain('Community Reviews');
+    expect(html).toContain('PAN: ABPTS8413D');
+    expect(html).toContain('Registration No: 160100346');
+    expect(html).toContain('NGO Darpan: WB/2026/1246363');
+    expect(html).not.toMatch(/CIN:|CSR:|300\+|4\.9|<img/);
     expect(html).not.toMatch(/<a\s|<button|50%/);
     const trustOnly = render(<RegistrationBadges footer certificates={certificates.slice(0,2)} taxCertificates={taxCertificates} today="2026-11-12"/>);
-    expect(trustOnly).toContain('Govt Registration Trust (Non profit)');
+    expect(trustOnly).toContain('Govt Registered Trust (Non-Profit)');
     expect(trustOnly).not.toMatch(/80G|12A/);
+    const missing = render(<RegistrationBadges footer/>);
+    expect(missing).toContain('PAN: ABPTS8413D');
+    expect(missing).not.toMatch(/Registration No:|NGO Darpan:|·/);
   });
 
   it('requires both reviewed trust records and a published, current certificate for a tax badge', () => {

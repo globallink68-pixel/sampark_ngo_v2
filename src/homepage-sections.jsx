@@ -139,16 +139,39 @@ export function RegistrationBadges({certificates = [], taxCertificates = {}, foo
     return certificate?.validUntil >= today && published(certificate.id, title);
   };
   const badges = [
-    [trust, 'trust', 'Govt. Registered Trust (Non-Profit)', 'Govt Registration Trust (Non profit)', 'M12 22s7-3 7-10V5l-7-3-7 3v7c0 7 7 10 7 10ZM9 12l2 2 4-4'],
+    [trust, 'trust', 'Govt. Registered Trust (Non-Profit)', 'Govt Registered Trust (Non-Profit)', 'M12 22s7-3 7-10V5l-7-3-7 3v7c0 7 7 10 7 10ZM9 12l2 2 4-4'],
     [tax('80g', /\b80G\b/i), 'tax', '80G — Tax Deduction Eligibility', '80G — Tax Deduction Eligibility', 'M7 17 17 7M8 8h.01M16 16h.01M12 2l3 2 4 1 1 4 2 3-2 3-1 4-4 1-3 2-3-2-4-1-1-4-2-3 2-3 1-4 4-1Z'],
-    [tax('12a', /\b12A(?:B)?\b/i), 'certificate', '12A — Income Tax Registration', '12A Registration', 'M14 2H5v20h14V7Zm0 0v5h5M8 14l3 3 5-5']
+    [tax('12a', /\b12A(?:B)?\b/i), 'certificate', '12A — Income Tax Registration', '12A Registered', 'M14 2H5v20h14V7Zm0 0v5h5M8 14l3 3 5-5']
   ].filter(([visible]) => visible);
+  const footerMarks = {
+    tax: 'M5 3l2 2 2-2 3 2 3-2 2 2 2-2v18l-2-2-2 2-3-2-3 2-2-2-2 2V3Zm4 5h6m-6 4h6m-6 4h4',
+    trust: 'M3 9l9-5 9 5H3Zm2 2v7m5-7v7m4-7v7m5-7v7M3 20h18'
+  };
+  const icon = mark => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={mark}/></svg>;
+  if (footer) {
+    const details = [
+      ...(trust ? ['Registration No: 160100346', 'NGO Darpan: WB/2026/1246363'] : []),
+      'PAN: ABPTS8413D'
+    ];
+    return <div className="sampark-footer-identity">
+      <ul className="sampark-footer-registration" aria-label="Registration and community information">
+        {[...badges.filter(([,kind]) => kind !== 'trust'), ...badges.filter(([,kind]) => kind === 'trust')]
+          .map(([,kind,,label,mark]) => <li key={kind} data-registration={kind}>{icon(footerMarks[kind] ?? mark)}{label}</li>)}
+        <li data-registration="reviews">{icon('m12 3 2.6 5.5 6.1.8-4.4 4.3 1 6.1L12 17l-5.3 2.7 1-6.1-4.4-4.3 6.1-.8L12 3Z')}
+          Community Reviews
+          {icon('M4 5h16v11H9l-5 4V5Zm4 4h8m-8 3h5')}
+        </li>
+      </ul>
+      <p className="sampark-footer-identifiers">{details.map((detail,index) => <React.Fragment key={detail}>
+        {index > 0 && <span aria-hidden="true">·</span>}<span>{detail}</span>
+      </React.Fragment>)}</p>
+    </div>;
+  }
   if (!badges.length) return null;
-  return <ul className={footer ? 'sampark-footer-registration' : 'sampark-registration-badges'} aria-label="Published registration information">
+  return <ul className="sampark-registration-badges" aria-label="Published registration information">
     {badges.map(([,kind,label,footerLabel,mark]) => {
-      const icon = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={mark}/></svg>;
       return <li key={kind} data-registration={kind}>
-        {footer ? <>{icon}{footerLabel}</> : <Link to="/transparency#registration">{icon}{label}</Link>}
+        <Link to="/transparency#registration">{icon(mark)}{label}</Link>
       </li>;
     })}
   </ul>;

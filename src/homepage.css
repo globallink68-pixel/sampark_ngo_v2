@@ -225,33 +225,55 @@
 .sampark-home .sampark-registration-badges a:hover { background: #e1f8ed; }
 .sampark-home .sampark-registration-badges svg { width: 1.15rem; height: 1.15rem; flex: none; }
 
+.public-view footer .sampark-footer-identity { margin-bottom: 1.5rem; }
 .public-view footer .sampark-footer-registration {
   display: flex;
   flex-wrap: wrap;
-  gap: .45rem;
-  margin: 0 0 1.25rem;
+  justify-content: center;
+  gap: .45rem .55rem;
+  margin: 0;
   padding: 0;
   list-style: none;
 }
 .public-view footer .sampark-footer-registration li {
   display: inline-flex;
   align-items: center;
-  gap: .45rem;
-  padding: .4rem .7rem;
-  border: 1px solid #4c5d74;
-  border-radius: 2rem;
-  color: #f2f6ff;
-  font-size: .83rem;
+  gap: .38rem;
+  padding: .36rem .7rem;
+  border: 1px solid #d6dfe5;
+  border-radius: 999px;
+  background: #fff;
+  color: #142038;
+  box-shadow: 0 2px 8px #060f2633;
+  font-size: .78rem;
   font-weight: 700;
+  line-height: 1.3;
 }
 .public-view footer .sampark-footer-registration svg {
-  width: 1.15rem;
-  height: 1.15rem;
+  width: 1rem;
+  height: 1rem;
   flex: none;
-  color: #8ce7bc;
+  color: #234a9b;
 }
-.public-view footer .sampark-footer-registration [data-registration="tax"] svg { color: #f5cd77; }
-.public-view footer .sampark-footer-registration [data-registration="certificate"] svg { color: #a8caff; }
+.public-view footer .sampark-footer-registration [data-registration="tax"] {
+  border-color: #e8b94d;
+  background: #ffebad;
+  color: #633905;
+}
+.public-view footer .sampark-footer-registration [data-registration="tax"] svg { color: #a45100; }
+.public-view footer .sampark-footer-registration [data-registration="certificate"] svg { color: #087456; }
+.public-view footer .sampark-footer-registration [data-registration="reviews"] svg:first-child { color: #9b6300; fill: #ffd34f; }
+.public-view footer .sampark-footer-registration [data-registration="reviews"] svg:last-child { color: #42637d; width: .85rem; }
+.public-view footer .sampark-footer-identifiers {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: .12rem .45rem;
+  margin: .65rem 0 0;
+  color: #c2cbd9;
+  font-size: .75rem;
+  text-align: center;
+}
 
 .sampark-home .sampark-reviews {
   background: linear-gradient(155deg, #f0fbf5, #fffaf0);
